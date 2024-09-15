@@ -1,0 +1,99 @@
+---
+title: "Stack Layout"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Stack Layout}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+`layout_stack()` put plots horizontally or vertically. You can also use the
+alias `ggstack()`.
+
+```{r setup}
+library(ggalign)
+```
+
+## Input data 
+The data input can be a numeric or character vector, a matrix, and a data frame.
+Simple vector will be converted into a one column matrix.
+
+```{r setup_data}
+set.seed(123)
+small_mat <- matrix(rnorm(81), nrow = 9)
+rownames(small_mat) <- paste0("row", seq_len(nrow(small_mat)))
+colnames(small_mat) <- paste0("column", seq_len(ncol(small_mat)))
+```
+
+By default, `ggstack()` will create the layout, but no plot will be drawn until
+you add a plot element:
+```{r}
+ggstack(small_mat)
+```
+
+We can add any `align_*()` function to customize the layout or integrate plots
+into the stack. 
+```{r}
+ggstack(small_mat) + align_dendro()
+```
+
+```{r}
+ggstack(small_mat) +
+  align_kmeans(centers = 3L) +
+  ggalign(rowSums) +
+  geom_bar(aes(value, fill = .panel), orientation = "y", stat = "identity") +
+  facet_grid(switch = "y") +
+  theme(strip.text = element_text()) +
+  align_dendro(aes(color = branch))
+```
+
+By default, `ggstack()` arranges the plots horizontally. To change the direction
+to vertical, use the `direction` argument: 
+```{r}
+ggstack(small_mat, "v") + align_dendro()
+```
+
+Unlike `layout_heatmap()`/`ggheatmap()`, data frames are not automatically
+converted into a matrix within `ggstack()`.
+
+When using data frames, be cautious as many `align_*()` functions only accept
+matrices. If the necessary data is not explicitly provided to an `align_*()`
+function, the data frame from `ggstack()` will be passed to the function and
+internally converted into a matrix, which may result in missing values. 
+
+An exception is the `align_gg()`/`ggalign()` function, which can handle both
+matrix and data frames. When the input is a matrix (or a simple vector), it is
+automatically transformed into a long-format data frame. When the input is a
+data frame, only the necessary panel and axis information is added to the data
+frame.
+
+```{r}
+ggstack(mtcars) +
+  ggalign(mapping = aes(mpg)) +
+  geom_point()
+```
+
+Note `align_gg()`/`ggalign()` always applies a default mapping for the parallel
+axes of the data index within the layout. This mapping is `aes(y = .data$.y)`
+for horizontal stack and `aes(x = .data$.x)` for vertical stack. So here we only
+provide mapping for the `x-axis`, for the horizontal stack, we default use the
+data index as the `y-axis`.
+
+For more information on adding plots, refer to the vignette:
+`vignette("align-plot")`.
+
+## Heatmap plot
+Besides the `align_*()` functions, we can also add the
+`layout_heatmap()`/`ggheatmap()` into the stack layout.
+
+## Session information
+```{r}
+sessionInfo()
+```

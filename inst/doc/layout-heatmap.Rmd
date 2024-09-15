@@ -1,0 +1,263 @@
+---
+title: "Heatmap Layout"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Heatmap Layout}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+`layout_heatmap()` utilizes the grammar of graphics to construct the heatmap and
+heatmap annotations. You can also use the alias `ggheatmap()`.
+
+```{r setup}
+library(ggalign)
+```
+
+## Input data 
+The data input can be a numeric or character vector, a data frame, and any other
+data which can be converted into a matrix.
+
+```{r setup_data}
+set.seed(123)
+small_mat <- matrix(rnorm(81), nrow = 9)
+rownames(small_mat) <- paste0("row", seq_len(nrow(small_mat)))
+colnames(small_mat) <- paste0("column", seq_len(ncol(small_mat)))
+```
+
+```{r matrix}
+ggheatmap(small_mat)
+```
+
+## Heatmap body
+For `ggplot2` usage, the matrix input will be converted into a long formated
+data frame when drawing. The default mapping will use `aes(.data$.x, .data$.y)`,
+but can be controlled using `mapping` argument. The data in the underlying
+ggplot object contains following columns:
+
+  - `.xpanel` and `.ypanel`: the column and row panel
+
+  - `.x` and `.y`: the `x` and `y` coordinates
+
+  - `.row_names` and `.column_names`: A factor of the row and column names of
+    the original matrix (only applicable when names exist).
+
+  - `.row_index` and `.column_index`: the row and column index of the original
+    matrix.
+
+  - `value`: the actual matrix value.
+
+You can treat the `layout_heatmap()` object as a normal ggplot2 object with a
+default `mapping` and `data`. You can add `ggplot2` elements as usual.
+```{r}
+ggheatmap(small_mat) + geom_point() + scale_fill_viridis_c()
+```
+
+By default, we'll add the heatmap layer. If you set `filling = FALSE`, a blank
+heamtap will be drawn.
+```{r}
+ggheatmap(small_mat, filling = FALSE)
+```
+
+## Heatmap annotations
+Heatmap annotations provide additional information for the rows or columns of
+the heatmap and can be placed at the `top`, `left`, `bottom`, or `right`. An
+annotation is a `layout_stack()` object internally, capable of holding multiple
+plots.
+
+By default, `ggheatmap()` does not initialize an active context, so all
+additions are placed within the heatmap body. You can use `hmanno()` to set the
+active context, directing all subsequent additions to this position. The active
+context allows for custom layout adjustments and the addition of various plot
+types.
+
+In the following example, `align_kmeans()` is used to group the columns into 3
+panels. It doesn't matter if this is added to the top or bottom since it won't
+add a plot area:
+
+```{r}
+ggheatmap(small_mat) +
+  hmanno("t") +
+  align_kmeans(3L)
+```
+
+We can add any `align_*()` function to the annotation. For more details on
+`align_*()` functions, refer to `vignette("align-layout")` and
+`vignette("align-plot")`.
+
+```{r}
+ggheatmap(small_mat) +
+  theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
+  hmanno("r") +
+  align_dendro(k = 3L) +
+  geom_point(aes(color = factor(branch)))
+```
+
+In this example:
+
+ - `hmanno("r")` change the active context to the right of the heatmap.
+ - `align_dendro(k = 3L)` adds a dendrogram to this right-side annotation
+ context and sets itself as the active plot in the annotation stack. 
+ - `geom_point(aes(color = factor(branch)))` is then added to this active plot
+ within the annotation stack.
+
+## Control size
+We can use `hmanno()` to control the relative sizes between heatmap body and the
+whole annotation stack.
+
+- **when `position` is `NULL`**: we can use `width` and `height` arguments to
+control the relative (you can also provide a unit object) width and height of
+the heatmap body.
+- **when `position` is not `NULL`**: we can use `size` argument to control the
+relative width (left and right annotation) or height (top and bottom annotation)
+of the whole annotation stack.
+
+```{r}
+ggheatmap(small_mat) +
+  scale_fill_viridis_c() +
+  hmanno(height = 1) +
+  hmanno("t", size = 2) +
+  align_dendro() +
+  ggalign(data = rowSums) +
+  geom_bar(aes(y = value, fill = .x), stat = "identity")
+```
+
+```{r}
+ggheatmap(small_mat) +
+  scale_fill_viridis_c() +
+  hmanno("t", size = 1) +
+  align_dendro() +
+  ggalign(data = rowSums) +
+  geom_bar(aes(y = value, fill = .x), stat = "identity")
+```
+
+We can use `unit()` to define the size.
+```{r}
+ggheatmap(small_mat) +
+  scale_fill_viridis_c() +
+  hmanno("t", size = unit(30, "mm")) +
+  align_dendro() +
+  ggalign(data = rowSums) +
+  geom_bar(aes(y = value, fill = .x), stat = "identity")
+```
+
+All `align_*()` functions has a `size` argument to control the relative width
+(left and right annotation) or height (top and bottom annotation) of the single
+plot in the whole annotation stack.
+```{r}
+ggheatmap(small_mat) +
+  scale_fill_viridis_c() +
+  hmanno("l", size = 0.2) +
+  ggalign(data = rowSums, aes(x = value), size = unit(10, "mm")) +
+  geom_bar(
+    aes(y = .y, fill = factor(.y)),
+    stat = "identity",
+    orientation = "y"
+  ) +
+  scale_fill_brewer(palette = "Set1", guide = "none") +
+  scale_x_reverse()
+```
+
+## Alignment of axis titles
+By default, `ggheatmap()` won't align the axis titles.
+```{r}
+ggheatmap(small_mat) +
+  scale_fill_viridis_c() +
+  ylab("Heatmap title") +
+  hmanno("t", size = unit(30, "mm")) +
+  align_dendro() +
+  ylab("Annotation title")
+```
+
+To align all axis titles, you can set `free_labs = NULL` in the `hmanno()`
+function. Alternatively, A boolean value or a single string containing one or
+more of axis positions ("t", "l", "b", "r") to indicate which axis titles should
+be free from alignment.
+
+- **when `position` is `NULL`**: The `free_labs` argument controls the alignment
+of the heatmap body's axis titles. If set to `waiver()`, it will inherit from
+the parent layout.
+- **when `position` is not `NULL`**: The `free_labs` argument controls the
+alignment of the annotation stack's axis titles. If set to `waiver()`, it will
+inherit from the specific heatmap layout axis:
+  - For top and bottom annotations, it inherits from the left ("l") and right
+  ("r") axes. 
+  - For left and right annotations, it inherits from the top ("t") and bottom
+  ("b") axes.
+
+```{r}
+ggheatmap(small_mat) +
+  hmanno(free_labs = NULL) +
+  scale_fill_viridis_c() +
+  ylab("Heatmap title") +
+  hmanno("t", size = unit(30, "mm")) +
+  align_dendro() +
+  ylab("Annotation title")
+```
+
+`align_*()` functions include the `free_labs` argument, which, by default,
+inherits from the annotatioon stack. This allows you to control the alignment
+for each plot individually.
+
+```{r}
+ggheatmap(small_mat) +
+  hmanno(free_labs = NULL) +
+  scale_fill_viridis_c() +
+  ylab("Heatmap title") +
+  hmanno("t", size = unit(30, "mm"), free_labs = "l") +
+  align_dendro() +
+  ylab("Annotation title")
+```
+
+## Removing spaces when aligning elements
+By default, we'll align all elements of the plot, which can sometimes lead to
+unwanted spacing. Consider the following example:
+
+```{r}
+ggheatmap(small_mat) +
+  scale_fill_viridis_c() +
+  hmanno("t", size = unit(30, "mm")) +
+  align_dendro() +
+  scale_y_continuous(
+    expand = expansion(),
+    labels = ~ paste("very very long labels", .x)
+  ) +
+  hmanno("l") +
+  align_dendro() +
+  scale_x_reverse(expand = expansion())
+```
+
+In this case, the left annotation stack is positioned far from the heatmap body
+due to the wide axis labels in the top annotation stack. This occurs because the
+top annotation stack is aligned with the heatmap body. To fix this, you can
+remove the left borders around the panel of the top annotation stack by setting
+`free_spaces = "l"`. 
+
+```{r}
+ggheatmap(small_mat) +
+  scale_fill_viridis_c() +
+  hmanno("t", size = unit(30, "mm"), free_spaces = "l") +
+  align_dendro() +
+  scale_y_continuous(
+    expand = expansion(),
+    labels = ~ paste("very very long labels", .x)
+  ) +
+  hmanno("l") +
+  align_dendro() +
+  scale_x_reverse(expand = expansion())
+```
+
+The same with `free_labs` argument, you can control the `free_spaces` argument
+for the individual plot in `align_*()` function.
+
+## Session information
+```{r}
+sessionInfo()
+```

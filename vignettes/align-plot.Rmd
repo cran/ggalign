@@ -1,0 +1,188 @@
+---
+title: "Layout Plot"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Plot Integration}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+The `ggalign` package offers several `align_*` functions that allow you to
+precisely control plot layout and integrate additional plots. Currently, there
+are two primary `align_*` functions for adding plots:
+
+  - `align_gg()`/`ggalign()`: Create ggplot object with a customized data.
+  - `align_panel()`/`ggpanel()`: Create ggplot object with the layout panel
+    data.
+
+```{r setup}
+library(ggalign)
+```
+
+```{r setup_data}
+set.seed(123)
+small_mat <- matrix(rnorm(81), nrow = 9)
+rownames(small_mat) <- paste0("row", seq_len(nrow(small_mat)))
+colnames(small_mat) <- paste0("column", seq_len(ncol(small_mat)))
+```
+
+## `align_gg`
+`align_gg()` is similar to `ggplot` in that it initializes a `ggplot` data and
+`mapping`. Same with other `align_*` functions. `align_gg()` allowing you to
+provide data in various formats, including matrices, data frames, or simple
+vectors. This data can be also inherited from the layout. 
+
+`align_gg()` always applies a default mapping for the parallel axes of the data
+index within the layout. This mapping is `aes(y = .data$.y)` for horizontal
+stacking (including left and right heatmap annotation) and `aes(x = .data$.x)`
+for vertical stacking (including top and bottom heatmap annotation). For more
+information, refer to the "ggplot2 Specification" section in the `align_gg()`
+documentation.
+
+> Note: All `align_*` functions treat rows as observations, meaning the `NROW()`
+function must return a number equal to the parallel layout axis. For heatmap
+column annotations, the heatmap matrix is transposed before being used. If data
+is a function, it will be applied to the transposed matrix. In this example, we
+use `rowSums()` to calculate the sum value across all columns. 
+
+You can also use the `ggalign()` function, which is an alias for `align_gg()`.
+
+```{r}
+ggheatmap(small_mat) +
+  scale_fill_viridis_c(guide = "none") +
+  hmanno("t") +
+  ggalign(data = rowSums) +
+  geom_point(aes(y = value))
+```
+
+See `ggplot2 specification` in `align_gg()`/`ggalign()` for the data details.
+
+### Plot data
+`align_gg()`/`ggalign()` requires the specific data format for its operations.
+If you need to transform or filter data for individual `geoms`, you can use the
+`data` argument within each `geom`. However, if you have multiple `geoms` and
+want a consistent transformation applied across all, you can utilize the
+`plot_data` argument in the `align_gg()`/`ggalign()` function. This allows you
+to transform the default data for all subsequent geoms. 
+
+```{r}
+ggheatmap(small_mat) +
+  scale_fill_viridis_c(guide = "none") +
+  hmanno("t") +
+  align_kmeans(3L) +
+  ggalign(plot_data = function(data) subset(data, .panel == 1L)) +
+  geom_bar(aes(y = value, fill = .row_names), stat = "identity")
+```
+
+### Cross panel sumamry
+When used in a heatmap layout, and the data is inherited from the heatmap data,
+a special column `.extra_panel` will be added, which is the panel information
+for column (left or right annotation) or row (top or bottom annotation). This is
+useful if you want to create summary plot using another axis panel. In such
+cases, it's often necessary to disable the automatic setting of limits (`limits
+= FALSE` in `align_gg()`).
+
+```{r fig.dim = c(5, 10)}
+set.seed(1L)
+v <- stats::rnorm(50L)
+split <- sample(letters[1:2], 50L, replace = TRUE)
+ggheatmap(v) +
+  scale_fill_viridis_c() +
+  theme(strip.text = element_text(), strip.background = element_rect()) +
+  hmanno("r") +
+  align_group(split) +
+  hmanno("t", size = 0.5) +
+  ggalign(limits = FALSE) +
+  geom_boxplot(aes(.extra_panel, value, fill = .extra_panel),
+    # here, we use `print()` to show the underlying data
+    data = function(data) {
+      print(head(data))
+      data
+    }
+  ) +
+  # the default will always use continuous scale, here, we override it, since
+  # the panel is a factor variable, we should use discrete scale.
+  scale_x_discrete() +
+  scale_fill_brewer(palette = "Dark2", name = "branch")
+```
+
+This approach replicates the functionality of
+[ComplexHeatmap::anno_summary()](https://jokergoo.github.io/ComplexHeatmap-reference/book/heatmap-annotations.html#summary-annotation),
+but is versatile enough to be used with any heatmap, not just single-column or
+single-row heatmaps.
+```{r}
+ggheatmap(small_mat) +
+  hmanno("t") +
+  align_dendro(aes(color = branch), k = 3L) +
+  scale_color_brewer(palette = "Dark2") +
+  hmanno("r", size = 0.5) +
+  ggalign(limits = FALSE) +
+  geom_boxplot(aes(y = .extra_panel, x = value, fill = factor(.extra_panel))) +
+  # the default will always use continuous scale, here, we override it, since
+  # the panel is a factor variable, we should use discrete scale.
+  scale_y_discrete() +
+  scale_fill_brewer(palette = "Dark2", name = "branch") +
+  theme(axis.text.x = element_text(angle = -60, hjust = 0))
+```
+
+### Plot titles
+`ggplot2` only allow add titles in the top or add caption in the bottom.
+The ggalign package extends this capability, allowing you to place titles around
+any border of the plot using the `patch_titles()` function. 
+
+```{r}
+ggheatmap(small_mat) +
+  patch_titles(left = "left patch title", bottom = "bottom patch title") +
+  hmanno("t") +
+  align_dendro(aes(color = branch), k = 3L) +
+  scale_color_brewer(palette = "Dark2") +
+  patch_titles(top = "top patch title") +
+  hmanno("r", size = 0.5) +
+  ggalign(limits = FALSE) +
+  geom_boxplot(aes(y = .extra_panel, x = value, fill = factor(.extra_panel))) +
+  scale_y_discrete() +
+  scale_fill_brewer(palette = "Dark2", name = "branch") +
+  theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
+  patch_titles(right = "right patch title")
+```
+
+## `align_panel`
+The `align_panel()` function is similar to align_gg(), but it operates
+specifically with layout panel data, removing all axis labels and ticks. The
+`ggpanel()` function is an alias for `align_panel()`. 
+
+The data in the underlying `ggplot` object contains following columns:
+
+ - `.panel`: the panel for current layout axis.
+ - `.index`: the index of the original layout data.
+ - `.x` or `.y`: the `x` or `y` coordinates
+
+You can use `align_panel()` to integrate additional elements, such as block
+annotation or customized panel title, into your layout.
+
+```{r}
+ggheatmap(small_mat) +
+  hmanno("t", size = unit(1, "cm")) +
+  align_kmeans(centers = 3L) +
+  ggpanel() +
+  geom_tile(aes(y = 1L, fill = .panel, color = .panel),
+    width = 1L, height = 1L
+  ) +
+  geom_text(aes(y = 1L, label = .panel),
+    data = function(data) {
+      aggregate(.x ~ .panel, data, FUN = median)
+    }
+  )
+```
+
+## Session information
+```{r}
+sessionInfo()
+```

@@ -1,0 +1,29 @@
+Package: ggalign
+Title: Align Multiple 'ggplot' Objects
+Version: 0.0.3
+Authors@R: 
+    person("Yun", "Peng", , "yunyunp96@163.com", role = c("aut", "cre", "cph"), comment = c(ORCID = "0000-0003-2801-3332"))
+Description: A 'ggplot2' extension offers various tools for organizing and arranging plots. 
+    It is designed to consistently align a specific axis across multiple 'ggplot' objects, 
+    making it especially useful for plots requiring data order manipulation. A typical use 
+    case includes organizing combinations like a dendrogram and a heatmap.
+License: MIT + file LICENSE
+Encoding: UTF-8
+RoxygenNote: 7.3.2
+Depends: ggplot2
+Imports: cli, ggh4x, grid, gtable, methods, rlang (>= 1.1.0), stats,
+        tibble, tidyr
+ByteCompile: true
+URL: https://github.com/Yunuuuu/ggalign,
+        https://yunuuuu.github.io/ggalign/
+BugReports: https://github.com/Yunuuuu/ggalign/issues
+Suggests: gridGraphics, knitr, patchwork, rmarkdown, scales, testthat
+        (>= 3.0.0), vdiffr
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+NeedsCompilation: no
+Packaged: 2024-09-12 11:00:38 UTC; yun
+Author: Yun Peng [aut, cre, cph] (<https://orcid.org/0000-0003-2801-3332>)
+Maintainer: Yun Peng <yunyunp96@163.com>
+Repository: CRAN
+Date/Publication: 2024-09-15 20:30:10 UTC
