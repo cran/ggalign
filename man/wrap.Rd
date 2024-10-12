@@ -36,13 +36,35 @@ compliant representation for use with \code{\link[=align_plots]{align_plots()}}.
 adding any graphics that can be converted into a \link[grid:grid.grob]{grob} with the
 \code{\link[=patch]{patch()}} method.
 }
+\examples{
+library(grid)
+wrap(rectGrob(gp = gpar(fill = "goldenrod")), align = "full") +
+    inset(rectGrob(gp = gpar(fill = "steelblue")), align = "panel") +
+    inset(textGrob("Here are some text", gp = gpar(color = "black")),
+        align = "panel"
+    )
+p1 <- ggplot(mtcars) +
+    geom_point(aes(mpg, disp)) +
+    ggtitle("Plot 1")
+align_plots(p1, wrap(
+    ~ plot(mtcars$mpg, mtcars$disp),
+    mar = c(0, 2, 0, 0), bg = NA
+))
+
+}
 \seealso{
 \itemize{
-\item \link{patch.grob}
+\item \link{patch.grob} / \link{patch.gList}
 \item \link{patch.ggplot}
-\item \link{patch.formula}
+\item \link{patch.patch_ggplot}
+\item \link{patch.patchwork}
+\item \link{patch.patch}
+\item \link{patch.trellis}
+\item \link{patch.formula} / \link{patch.function}
+\item \link{patch.recordedplot}
 \item \link{patch.Heatmap}
 \item \link{patch.HeatmapList}
 \item \link{patch.HeatmapAnnotation}
+\item \link{patch.pheatmap}
 }
 }

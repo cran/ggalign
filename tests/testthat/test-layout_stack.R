@@ -12,8 +12,8 @@ testthat::test_that("`ggstack` works well", {
 
     # stack with no data
     p <- ggstack()
-    expect_s3_class(p@params$sizes, "unit")
-    expect_length(p@params$sizes, 3L)
+    expect_s3_class(p$sizes, "unit")
+    expect_length(p$sizes, 3L)
     expect_identical(p@nobs, NULL)
 })
 
@@ -22,18 +22,18 @@ testthat::test_that("add `stack_active` object works well", {
     # change parameters for stack self
     p2 <- p + stack_active(
         sizes = unit(1, "cm"),
-        guides = TRUE,
-        free_labs = TRUE,
+        guides = "tlbr",
+        free_labs = "tlbr",
         plot_data = NULL
     )
+    expect_identical(p2@sizes, unit(rep_len(1L, 3L), "cm"))
     params <- p2@params
-    expect_identical(params$sizes, unit(rep_len(1L, 3L), "cm"))
     expect_identical(params$guides, "tlbr")
     expect_identical(params$free_labs, "tlbr")
     expect_identical(params$plot_data, NULL)
 })
 
-testthat::test_that("add `HeatmapLayout` object works well", {
+testthat::test_that("add `heatmap_layout()` object works well", {
     # stack without data add heatmap without data gave error
     expect_error(ggstack() + ggheatmap())
 
@@ -101,4 +101,13 @@ testthat::test_that("add `HeatmapLayout` object works well", {
             align_dendro() +
             align_dendro()
     )
+})
+
+testthat::test_that("`ggsave()` works well", {
+    p <- ggstack(matrix(seq_len(81), nrow = 9L), "h") +
+        ggheatmap() +
+        hmanno("t", size = unit(6, "cm")) +
+        align_dendro() +
+        align_dendro()
+    expect_no_error(ggplot2::ggsave(tempfile(fileext = ".png"), plot = p))
 })

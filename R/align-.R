@@ -4,26 +4,37 @@
 #' observations, some of them can also add plot components into the `layout`
 #' object.
 #'
-#' @param data A matrix, a data frame, or even a simple vector that will be
-#' converted into a one-column matrix. If the `data` argument is set to `NULL`,
-#' the `align_*` will use the `layout` data. Additionally, the `data` argument
-#' can also accept a function (purrr-like lambda is also okay), which will be
-#' applied with the `layout` data,
+#' @param data A matrix, data frame, or a simple vector. If an atomic vector is
+#' provided, it will be converted into a one-column matrix. When `data = NULL`,
+#' the internal `layout` data will be used by default. Additionally, `data` can
+#' be a function (including purrr-like lambdas), which will be applied to the
+#' `layout` data.
 #'
-#' It is important to note that all `align_*` functions consider the `rows` as
-#' the observations. It means the `NROW(data)` must return the same number with
-#' the parallel `layout` axis.
+#' It is important to note that we consider the `rows` as the observations. It
+#' means the `NROW(data)` must return the same number with the specific `layout`
+#' axis (meaning the x-axis for vertical stack layout, or y-axis for horizontal
+#' stack layout).
 #'
-#'  - `layout_heatmap`: for column annotation, the `layout` data will be
+#'  - `heatmap_layout()`: for column annotation, the `layout` data will be
 #'  transposed before using (If data is a `function`, it will be applied with
 #'  the transposed matrix). This is necessary because column annotation uses
 #'  heatmap columns as observations, but we need rows.
 #'
-#'  - `layout_stack`: the `layout` data will be used as it is since we place all
-#'    plots along a single axis.
+#'  - `stack_layout()`: the `layout` data will be used as it is since we place
+#'    all plots along a single axis.
 #'
 #' @param size Plot size, can be an [unit][grid::unit] object.
+#' @param free_guides Override the `guides` argument specified in the layout for
+#' a plot. `r rd_free_guides()`.
 #' @inheritParams hmanno
+#' @param theme Default plot theme: `r rd_theme()`
+#'
+#' `Note:` The axis title and labels parallel to the layout axis will always be
+#' removed by default. For vertical stack layouts, this refers to the `x-axis`,
+#' and for horizontal stack layouts, this refers to the `y-axis`. If you want to
+#' display the axis title or labels, you should manually add
+#' [theme()][ggplot2::theme] elements for the parallel axis title or labels.
+#'
 #' @param limits A boolean value indicates whether to set the layout limtis for
 #' the plot.
 #' @param facet A boolean value indicates whether to set the layout facet for
@@ -31,7 +42,7 @@
 #' @param set_context A single boolean value indicates whether to set the active
 #' context to current plot. If `TRUE`, all subsequent ggplot elements will be
 #' added into this plot.
-#' @param order An single integer for the layout order.
+#' @param order An single integer for the plot area order.
 #' @param name A string of the plot name. Used to switch the active context in
 #' [hmanno()] or [stack_active()].
 #' @param check.param A single boolean value indicates whether to check the
@@ -42,6 +53,7 @@
 #' align_gg()
 #' align_dendro()
 #' @importFrom rlang caller_call current_call
+#' @importFrom ggplot2 ggproto
 #' @export
 #' @keywords internal
 align <- function(align_class, params,
@@ -55,9 +67,8 @@ align <- function(align_class, params,
                   #
                   # Details see `initialize_align()`
                   data, size = NULL,
-                  free_labs = waiver(),
-                  free_spaces = waiver(),
-                  plot_data = waiver(),
+                  free_guides = waiver(), free_spaces = waiver(),
+                  plot_data = waiver(), theme = waiver(), free_labs = waiver(),
                   limits = TRUE, facet = TRUE,
                   set_context = TRUE, order = NULL, name = NULL,
                   check.param = TRUE, call = caller_call()) {
@@ -66,40 +77,21 @@ align <- function(align_class, params,
     }
 
     # check arguments ---------------------------------------------
+    data <- allow_lambda(data)
     if (is.null(size)) {
         size <- unit(NA, "null")
     } else {
         size <- check_size(size)
     }
-    data <- allow_lambda(data)
-    if (!is.waive(free_labs)) {
-        free_labs <- check_layout_position(free_labs, call = call)
-    }
-    if (!is.waive(free_spaces) && !is.null(free_spaces)) {
-        free_spaces <- check_ggelements(free_spaces, call = call)
-    }
-    if (!is.waive(plot_data)) {
-        plot_data <- check_plot_data(plot_data, call = call)
-    }
+    assert_layout_position(free_guides, call = call)
+    assert_layout_position(free_spaces, call = call)
+    plot_data <- check_plot_data(plot_data, call = call)
+    assert_layout_position(free_labs, call = call)
     assert_bool(facet, call = call)
     assert_bool(limits, call = call)
     assert_bool(set_context, call = call)
-
-    if (is.null(order) || is.na(order)) {
-        order <- NA_integer_
-    } else if (!is_scalar(order)) {
-        cli::cli_abort("{.arg order} must be a single number", call = call)
-    } else if (is.double(order)) {
-        order <- as.integer(order)
-    } else if (!is.integer(order)) {
-        cli::cli_abort("{.arg order} must be a single number", call = call)
-    }
-    if (!is.null(name) && (!is_string(name) || name == "")) {
-        cli::cli_abort(
-            "{.arg name} must be a single non-empty string",
-            call = call
-        )
-    }
+    order <- check_order(order, call = call)
+    assert_string(name, empty_ok = FALSE, na_ok = TRUE, null_ok = TRUE)
 
     # Warn about extra params or missing parameters ---------------
     all <- align_class$parameters()
@@ -113,7 +105,7 @@ align <- function(align_class, params,
     }
 
     # wrap all elements into this annotation ---------------------
-    ggplot2::ggproto(
+    ggproto(
         NULL,
         align_class,
         isLock = FALSE,
@@ -121,30 +113,32 @@ align <- function(align_class, params,
         # and will be saved and accessed across the plot rendering process
         statistics = NULL,
         direction = NULL,
+        position = NULL,
         plot = NULL,
         data = NULL,
         params = NULL,
-        labels = NULL,
+        labels = NULL, # the original rownames of the input data
 
         # user input -------------------------------
         size = size,
-        # should we allow user switch between different annotation with a string
-        # name? Should I remove "name" argument from user?
-        name = name,
+        # should we allow user switch between different plot with a string name?
+        # Should I remove "name" argument from the user input?
+        name = name %||% NA_character_,
         order = order,
         set_context = set_context,
         # use `NULL` if this align don't require any data
         # use `waiver()` to inherit from the layout data
         input_data = data,
+        free_guides = free_guides,
         plot_data = plot_data,
         free_labs = free_labs,
         free_spaces = free_spaces,
+        theme = theme,
         facet = facet,
         limits = limits,
 
         # collect parameters
         input_params = params[intersect(names(params), all)],
-        facetted_pos_scales = NULL,
 
         # used to provide error message
         call = call
@@ -168,7 +162,7 @@ plot.Align <- function(x, ...) {
     cli::cli_abort("You cannot plot {.obj_type_friendly {x}} object directly")
 }
 
-is.align <- function(x) inherits(x, "Align")
+is_align <- function(x) inherits(x, "Align")
 
 #' @section Align:
 #' Each of the `Align*` objects is just a [ggproto()][ggplot2::ggproto] object,
@@ -184,11 +178,12 @@ is.align <- function(x) inherits(x, "Align")
 #'  - `layout`: A method used to group heamap rows/columns into panel or
 #'    reorder heamtap rows/columns.
 #'  - `draw`: A method used to draw the plot. Must return a `ggplot` object.
+#' @importFrom ggplot2 ggproto
 #' @export
 #' @format NULL
 #' @usage NULL
 #' @rdname align
-Align <- ggplot2::ggproto("Align",
+Align <- ggproto("Align",
     parameters = function(self) {
         c(
             align_method_params(self$compute),
@@ -217,12 +212,15 @@ Align <- ggplot2::ggproto("Align",
     setup_data = function(params, data) data,
 
     # You must provide `nobs()` function or data shouldn't be `NULL`
-    nobs = function(params) {
-        cli::cli_abort("Not implement currently")
-    },
+    # If this `Align` doesn't initialize the layout observations, we should
+    # return `NULL`, in this way, you cannot use this `Align` object to
+    # initialize the layout panel or index. We always ensure the panel and index
+    # number is equal to `nobs`. If you want to indicates no obervations, you
+    # must return `0L`.
+    nobs = function(params) NULL,
 
     # Following fields should be defined for the new `Align` object.
-    # argument name in the function doesn't matter.
+    # argument name in these function doesn't matter.
     compute = function(self, panel, index) NULL,
 
     # Group heamap row/column and reorder, Must return a list of 2:

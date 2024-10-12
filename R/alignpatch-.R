@@ -1,27 +1,22 @@
 # here is copied from patchwork
 # we modified the `patchwork` package for following reasons:
-# 1. we don't want to align some axes for some columns or rows, this is the main
-#    reason and this is not approriate to push into patchwork.
-# 2. collect guides for each side (should be merged into patchwork).
-# 3. allow collapse axis title and labels (should be merged into patchwork).
-#    see https://github.com/thomasp85/patchwork/pull/373
-# 4. Added titles around the plot top, left, bottom, and right
+# 1. collect guides for each side (should be merged into patchwork, not allowed
+#    to be merged: https://github.com/thomasp85/patchwork/issues/379).
+# 2. `free_*()` functions: see https://github.com/thomasp85/patchwork/issues/379
+#     - `free_align()`: added
+#     - `free_border()`: not added
+#     - `free_lab()`: added
+#     - `free_space()`: added
+#     - `free_vp()`: not added
+# 3. Added titles around the plot top, left, bottom, and right
+#    (`patch_titles()`)
 TABLE_ROWS <- 18L + 2L
 TABLE_COLS <- 15L + 2L
-PANEL_ROW <- 10L + 1L
-PANEL_COL <- 8L + 1L
-PLOT_TOP <- 7L + 1L
-PLOT_BOTTOM <- 13L + 1L
-PLOT_LEFT <- 5L + 1L
-PLOT_RIGHT <- 11L + 1L
-TITLE_ROW <- 3L
-SUBTITLE_ROW <- 4L
-CAPTION_ROW <- 16L + 2L
 
-GUIDE_TOP <- 5L
-GUIDE_LEFT <- 3L
-GUIDE_BOTTOM <- 15L + 2L
-GUIDE_RIGHT <- 13L + 2L
+TOP_BORDER <- 9L + 1L
+LEFT_BORDER <- 7L + 1L
+BOTTOM_BORDER <- 8L + 1L
+RIGHT_BORDER <- 7L + 1L
 
 # top-bottom
 # 1: margin
@@ -32,12 +27,9 @@ GUIDE_RIGHT <- 13L + 2L
 # 6: legend.box.spacing
 # feature: insert patch title
 # 7: xlab-t
-# strip.placement = "inside"
-# 8: axis-t
-# 9: strip-t
-# strip.placement = "outside"
-# 8.strip-t
-# 9. axis-t
+# strip.placement = "inside"/"outside"
+# 8: axis-t/strip-t
+# 9: strip-t/axis-t
 # 10: panel
 # 11: strip-b
 # 12: axis-b
@@ -75,13 +67,12 @@ union_position <- function(x, y) paste0(x, gsub(sprintf("[%s]", x), "", y))
 split_position <- function(x) {
     unique(.subset2(strsplit(x, "", fixed = TRUE), 1L))
 }
-setup_position <- function(x) {
-    .subset(
-        c(t = "top", l = "left", b = "bottom", r = "right"),
-        split_position(x)
-    )
+setup_pos <- function(x) {
+    complete_pos(split_position(x))
 }
-
+complete_pos <- function(x) {
+    .subset(c(t = "top", l = "left", b = "bottom", r = "right"), x)
+}
 opposite_pos <- function(pos) {
     switch(pos,
         top = "bottom",
@@ -94,100 +85,51 @@ opposite_pos <- function(pos) {
 #' @importFrom ggplot2 zeroGrob
 #' @importFrom gtable gtable gtable_add_grob
 #' @importFrom grid unit
-make_patch <- function() {
+make_patch_table <- function() {
     widths <- unit(rep(0L, TABLE_COLS), "mm")
-    widths[PANEL_COL] <- unit(1L, "null")
+    widths[LEFT_BORDER + 1L] <- unit(1L, "null")
     heights <- unit(rep(0L, TABLE_ROWS), "mm")
-    heights[PANEL_ROW] <- unit(1L, "null")
+    heights[TOP_BORDER + 1L] <- unit(1L, "null")
     ans <- gtable(widths, heights)
     gtable_add_grob(ans,
-        list(zeroGrob()), PANEL_ROW, PANEL_COL,
+        list(zeroGrob()), TOP_BORDER + 1L, LEFT_BORDER + 1L,
         z = -Inf, name = "panel-area"
     )
-}
-
-# copied from patchwork
-#' @param borders Which borders should be aligned?
-#' @importFrom ggplot2 find_panel zeroGrob
-#' @importFrom gtable gtable gtable_add_grob
-#' @noRd
-make_full_patch <- function(gt, ..., borders = .TLBR) {
-    panel_pos <- find_panel(gt)
-    heights <- .subset2(gt, "heights")
-    widths <- .subset2(gt, "widths")
-    if (any(borders == "top")) {
-        t <- heights[seq_len(.subset2(panel_pos, "t") - 1L)]
-    } else {
-        t <- unit(rep(0L, PANEL_ROW - 1L), "mm")
-    }
-    if (any(borders == "left")) {
-        l <- widths[seq_len(.subset2(panel_pos, "l") - 1L)]
-    } else {
-        l <- unit(rep(0L, PANEL_COL - 1L), "mm")
-    }
-    if (any(borders == "bottom")) {
-        b <- heights[seq(.subset2(panel_pos, "b") + 1L, nrow(gt))]
-    } else {
-        b <- unit(rep(0L, TABLE_ROWS - PANEL_ROW), "mm")
-    }
-    if (any(borders == "right")) {
-        r <- widths[seq(.subset2(panel_pos, "r") + 1L, ncol(gt))]
-    } else {
-        r <- unit(rep(0L, TABLE_COLS - PANEL_COL), "mm")
-    }
-    widths <- unit.c(l, unit(1L, "null"), r)
-    heights <- unit.c(t, unit(1L, "null"), b)
-    ans <- gtable(widths = widths, heights = heights)
-    ans <- gtable_add_grob(
-        ans, zeroGrob(),
-        PANEL_ROW, PANEL_COL,
-        name = "panel-area"
-    )
-    ans <- gtable_add_grob(ans, list(gt),
-        t = 1L, l = 1L, b = nrow(ans), r = ncol(ans), ...
-    )
-    add_class(ans, "full_patch")
 }
 
 #' Generate a plot grob.
 #'
 #' @param x An object to be converted into a [grob][grid::grob].
 #' @return A [grob()][grid::grob] object.
+#' @examples
+#' ggalignGrob(ggplot())
 #' @export
-ggalignGrob <- function(x) UseMethod("ggalignGrob")
+ggalignGrob <- function(x) {
+    ggalign_gtable(ggalign_build(x))
+}
 
-#' @export
-#' @rdname ggalignGrob
-ggalignGrob.default <- function(x) patch_gtable(alignpatch(x))
+# Now, we only define `ggalign_gtable` method for `alignpatches` and `ggplot`
+# `ggalign_build` must return these objects
+ggalign_build <- function(x) UseMethod("ggalign_build")
 
-#' Building `alignpatches` object
-#'
-#' @description
+ggalign_gtable <- function(x) UseMethod("ggalign_gtable")
+
 #' Prepare plots to be aligned with `align_plots`
 #'
-#' - `alignpatch`: Prepare a plot object to be aligned, the output must
-#' implement proper `patch_gtable` method.
-#'
-#' Extend object to be aligned with `align_plots`
-#'
-#' - `patch_table`: Convert the plot into a [gtable][gtable::gtable].
-#' - `patch_align`: Build a standard [gtable][gtable::gtable] object and set the
-#'   panel width and height.
-#'
-#' @details
-#' `ggalign` has implement `patch_gtable` method for following objects:
+#' @param x A plot object to be prepared for alignment.
+#' `ggalign` has implement `alignpatch` method for following objects:
 #'   - [ggplot][ggplot2::ggplot]
 #'   - [alignpatches][align_plots]
 #'   - [wrapped_plot][wrap]
 #'   - [patch][patchwork::patchGrob]
 #'   - [wrapped_patch][patchwork::wrap_elements]
-#' @param x A plot object to be prepared for alignment.
-#' @return
-#' - `alignpatch`: An object that implements `patch_gtable` method.
-#' @export
+#'   - [spacer][patchwork::plot_spacer]
+#'
+#' @return A `Patch` object.
 #' @examples
 #' alignpatch(ggplot())
-#' @order 1
+#' @seealso [align_plots]
+#' @export
 #' @keywords internal
 alignpatch <- function(x) UseMethod("alignpatch")
 
@@ -197,72 +139,133 @@ alignpatch.default <- function(x) {
 }
 
 #' @export
-alignpatch.ggplot <- function(x) x
-
-#' @export
-alignpatch.alignpatches <- function(x) x
-
-# For wrapped plot -------------------
-#' @export
-alignpatch.grob <- function(x) wrap(x)
-
-#' @export
-alignpatch.formula <- function(x) wrap(x)
-
-#' @export
-alignpatch.Heatmap <- function(x) wrap(x)
-
-#' @export
-alignpatch.HeatmapList <- alignpatch.Heatmap
-
-#' @export
-alignpatch.HeatmapAnnotation <- alignpatch.Heatmap
-
-#' @export
-alignpatch.wrapped_plot <- function(x) x
-
-###############################################
-#' @export
 alignpatch.NULL <- function(x) NULL
 
-#' @export
-patch_gtable.NULL <- function(patch, guides) make_patch()
+#' @importFrom ggplot2 ggproto
+#' @importFrom grid unit.c
+Patch <- ggproto("Patch", NULL,
+    # following fields will be added by `alignpatch()`
+    # plot = NULL,
+    # following fields will be added in `alignpatches$patch_gtable()`
+    # borders = NULL, guides = NULL, gt = NULL,
+    set_guides = function(guides) guides,
+    set_theme = function(theme) NULL, # by default we won't need theme
+    patch_gtable = function(self, plot = self$plot) {
+        cli::cli_abort(
+            "Cannot convert {.obj_type_friendly {plot}} into a {.cls grob}"
+        )
+    },
 
-#########################################
-#' @param patch A patch to be aligned.
-#' @param guides Input guides argument to [align_plots()]
-#' @return
-#' - `patch_gtable`: A [gtable][gtable::gtable] object.
-#' @examples
-#' patch_gtable(ggplot())
-#' @export
-#' @rdname alignpatch
-#' @order 2
-patch_gtable <- function(patch, guides) UseMethod("patch_gtable")
+    #' @importFrom vctrs vec_slice
+    collect_guides = function(self, guides = self$guides, gt = self$gt) {
+        if (is.null(guides)) return(list()) # styler: off
+        layout <- .subset2(gt, "layout")
+        grobs <- .subset2(gt, "grobs")
+        guides_ind <- grep("guide-box", .subset2(layout, "name"))
+        guides_loc <- vec_slice(layout, guides_ind)
+        collected_guides <- vector("list", length(guides))
+        names(collected_guides) <- guides
+        panel_pos <- find_panel(gt)
+        remove_grobs <- NULL
+        for (guide_pos in guides) {
+            guide_ind <- switch(guide_pos,
+                top = .subset2(guides_loc, "b") < .subset2(panel_pos, "t"),
+                left = .subset2(guides_loc, "r") < .subset2(panel_pos, "l"),
+                bottom = .subset2(guides_loc, "t") > .subset2(panel_pos, "b"),
+                right = .subset2(guides_loc, "l") > .subset2(panel_pos, "r")
+            )
+            if (!any(guide_ind)) next
+            guide_loc <- vec_slice(guides_loc, guide_ind)
+            guide_ind <- .subset(guides_ind, guide_ind)
+            remove_grobs <- c(guide_ind, remove_grobs)
+            guide_box <- .subset2(grobs, guide_ind)
+            collected_guides[[guide_pos]] <- .subset(
+                .subset2(guide_box, "grobs"),
+                grepl("guides", .subset2(.subset2(guide_box, "layout"), "name"))
+            )
 
-# we always build a standard gtable layout for the `patch`
-#' @param gt A [gtable][gtable::gtable] object from `patch_gtable`.
-#' @param panel_width,panel_height Size of the panel, if the size is `NA`, we
-#' should guess the size from the aspect ratio of the `gt`.
-#' @return
-#' - `patch_align`: A list with following elements:
-#'    - `gt`: A standard [gtable][gtable::gtable] object
-#'    - `width`/`height`: the panel width and height.
-#'    - `respect`: A boolean value indicates whether to fix this panel area.
-#' @export
-#' @rdname alignpatch
-patch_align <- function(gt, guides, panel_width, panel_height) {
-    UseMethod("patch_align")
-}
-
-#' @export
-patch_align.default <- function(gt, guides, panel_width, panel_height) {
-    list(gt = gt, width = panel_width, height = panel_height, respect = FALSE)
-}
-
-#' Extract the added classes when building alignpatches
-#' @noRd
-alignpatch_class <- function(x) {
-    cls <- class(x)
-    cls[seq_len(which(cls == "gtable") - 1L)]
-}
+            # remove the guide from the original gtable
+            space_pos <- switch(guide_pos,
+                top = ,
+                left = 1L,
+                bottom = ,
+                right = -1L
+            )
+            if (guide_pos %in% c("right", "left")) {
+                gt$widths[c(guide_loc$l, guide_loc$l + space_pos)] <- unit(
+                    c(0L, 0L), "mm"
+                )
+            } else if (guide_pos %in% c("bottom", "top")) {
+                gt$heights[c(guide_loc$t, guide_loc$t + space_pos)] <- unit(
+                    c(0L, 0L), "mm"
+                )
+            }
+        }
+        if (length(remove_grobs)) {
+            gt <- subset_gt(gt, -remove_grobs, trim = FALSE)
+        }
+        self$gt <- gt
+        collected_guides
+    },
+    respect = function(self, gt = self$gt) isTRUE(.subset2(gt, "respect")),
+    align_panel_sizes = function(self, panel_width, panel_height,
+                                 gt = self$gt) {
+        list(width = panel_width, height = panel_height, respect = FALSE)
+    },
+    get_sizes = function(self, free = NULL, gt = self$gt) {
+        ans <- .subset2(gt, "heights")
+        if (any(free == "t")) {
+            top <- unit(rep_len(0, TOP_BORDER), "mm")
+        } else {
+            top <- ans[seq_len(TOP_BORDER)]
+        }
+        if (any(free == "b")) {
+            bottom <- unit(rep_len(0, BOTTOM_BORDER), "mm")
+        } else {
+            bottom <- ans[seq(length(ans) - BOTTOM_BORDER + 1L, length(ans))]
+        }
+        ans <- .subset2(gt, "widths")
+        if (any(free == "l")) {
+            left <- unit(rep_len(0, LEFT_BORDER), "mm")
+        } else {
+            left <- ans[seq_len(LEFT_BORDER)]
+        }
+        if (any(free == "r")) {
+            right <- unit(rep_len(0, RIGHT_BORDER), "mm")
+        } else {
+            right <- ans[seq(length(ans) - RIGHT_BORDER + 1L, length(ans))]
+        }
+        list(
+            widths = unit.c(left, unit(0, "mm"), right),
+            heights = unit.c(top, unit(0, "mm"), bottom)
+        )
+    },
+    align_border = function(self, t = NULL, l = NULL, b = NULL, r = NULL,
+                            gt = self$gt) {
+        if (!is.null(t)) gt$heights[seq_along(t)] <- t
+        if (!is.null(l)) gt$widths[seq_along(l)] <- l
+        if (!is.null(b)) {
+            n_row <- nrow(gt)
+            gt$heights[seq(n_row - length(b) + 1L, n_row)] <- b
+        }
+        if (!is.null(r)) {
+            n_col <- ncol(gt)
+            gt$widths[seq(n_col - length(r) + 1L, n_col)] <- r
+        }
+        gt
+    },
+    split_gt = function(self, gt = self$gt) {
+        index <- .subset2(.subset2(gt, "layout"), "name") == "background"
+        bg <- .subset(.subset2(gt, "grobs"), index)
+        plot <- subset_gt(gt, !index, trim = FALSE)
+        list(bg = bg, plot = plot)
+    },
+    free_border = function(self, borders, gt = self$gt) {
+        cli::cli_abort(
+            "Cannot free border for {.obj_type_friendly {self$plot}}"
+        )
+    },
+    free_lab = function(self, labs, gt = self$gt) {
+        cli::cli_abort("Cannot free lab for {.obj_type_friendly {self$plot}}")
+    }
+)

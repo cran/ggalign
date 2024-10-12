@@ -11,6 +11,7 @@ dendrogram_data(
   type = "rectangle",
   leaf_pos = NULL,
   leaf_braches = NULL,
+  reorder_branches = TRUE,
   branch_gap = NULL,
   root = NULL
 )
@@ -37,6 +38,9 @@ of the number of observations in \code{tree}.}
 \item{leaf_braches}{Branches of the leaf node. Must be the same length of the
 number of observations in \code{tree}. Usually come from \link[stats:cutree]{cutree}.}
 
+\item{reorder_branches}{A single boolean value, indicates whether reorder the
+provided leaf_braches based on the actual index.}
+
 \item{branch_gap}{A single numeric value indicates the gap between different
 branches.}
 
@@ -59,10 +63,9 @@ to color different groups.
 using \link[ggplot2:facet_grid]{facet_grid}, this column will show
 which panel current node or edge is from. Note: some nodes may
 fall outside panel (between two panels), so there are possible
-\code{NA} values in this column. We also provide \code{ggpanel} column,
-which always give the right branch for usage of the ggplot
-facet.
-\item \code{ggpanel}: See \code{panel}, this is what we often used.
+\code{NA} values in this column.
+\item \code{.panel}: Similar with \code{panel} column, but always give the correct
+branch for usage of the ggplot facet.
 \item \code{panel1} and \code{panel2}: The panel1 and panel2 variables have the same
 functionality as \code{panel}, but they are specifically for the \code{edge} data
 and correspond to both nodes of each edge.

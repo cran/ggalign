@@ -20,20 +20,20 @@ align_group <- function(group, set_context = FALSE, name = NULL) {
     )
 }
 
-AlignGroup <- ggplot2::ggproto("AlignGroup", Align,
+#' @importFrom ggplot2 ggproto
+AlignGroup <- ggproto("AlignGroup", Align,
     nobs = function(self, params) {
         length(.subset2(params, "group"))
     },
     setup_params = function(self, nobs, params) {
         assert_mismatch_nobs(self, nobs,
             length(.subset2(params, "group")),
-            arg = "group",
-            msg = "must be an atomic vector"
+            msg = "must be an atomic vector",
+            arg = "group"
         )
         params
     },
     layout = function(self, panel, index, group) {
-        assert_sub_split(self, panel)
         list(group, index)
     }
 )

@@ -7,14 +7,15 @@
 hmanno(
   position = NULL,
   size = NULL,
-  width = NULL,
-  height = NULL,
   guides = NA,
-  free_labs = NA,
+  free_guides = NA,
   free_spaces = NA,
   plot_data = NA,
-  theme = NULL,
-  what = waiver()
+  theme = NA,
+  free_labs = NA,
+  what = waiver(),
+  width = NULL,
+  height = NULL
 )
 }
 \arguments{
@@ -25,48 +26,71 @@ values are follows:
 \item \code{NULL}: means set the active context into the \code{heatmap} itself.
 }}
 
-\item{size}{A \link[grid:unit]{unit} object to set the total size of the heatmap
-annotation. This will only be used if \code{what} is a string of \code{"top"},
-\code{"left"}, \code{"bottom"}, or \code{"right"}.
+\item{size}{An \link[grid:unit]{unit} object to set the total size of the heatmap
+annotation. This will only be used if \code{position} is a string.
 \itemize{
-\item If position is \code{"top"} or \code{"bottom"}, \code{size} set the total height of the
+\item If \code{position} is \code{"top"} or \code{"bottom"}, \code{size} set the total height of the
 annotation.
-\item If position is \code{"left"} or \code{"right"}, \code{size} set the total width of the
+\item If \code{position} is \code{"left"} or \code{"right"}, \code{size} set the total width of the
 annotation.
 }}
 
-\item{width, height}{Heatmap body width/height, can be a \link[grid:unit]{unit}
-object. Only used when \code{position} is \code{NULL}.}
+\item{guides}{A string containing one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"} indicates which side of guide legends should be collected. If \code{NULL}, no guide legends will be collected. If \code{\link[ggplot2:waiver]{waiver()}}, it will inherit from the parent layout
+\itemize{
+\item If \code{position} is \code{NULL}, this applies to the heamtap layout.
+\item If \code{position} is a string, this applies to the heatmap annotation stack
+layout.
+}}
 
-\item{guides}{A boolean value or a string containing one or more of
-\code{"t"},\code{"l"},\code{"b"},and \code{"r"} indicates Which guide should be collected. If \code{NULL}, no
-guides will be collected. Default: "tlbr".}
+\item{free_guides}{Override the \code{guides} collection behavior specified in
+the heatmap layout. Options include:
+\itemize{
+\item \code{\link[ggplot2:waiver]{waiver()}}: inherits behavior from the layout.
+\item \code{NULL}: no guide legends will be collected for the plot.
+\item A string containing one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"} indicates which side of guide legends should be collected for the plot.
+}
 
-\item{free_labs}{A boolean value or a string containing one or more of
-\code{"t"},\code{"l"},\code{"b"},and \code{"r"} indicates which axis title should be free from
-alignment. If \code{NULL}, all axis title will be aligned. Default: "tlbr".}
+\code{guides} argument controls the global guide collection behavior for all plots
+in the layout, while the \code{free_guides} argument overrides this for a single
+plot in the layout.}
 
-\item{free_spaces}{A character specifies the ggplot elements which won't
-count space sizes when alignment. If \code{NULL} (default), no space will be
-removed. See \code{\link[=free_space]{free_space()}} for allowed values.}
+\item{free_spaces}{A string with one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"}
+indicating which border spaces should be removed. Defaults to
+\code{\link[ggplot2:waiver]{waiver()}}, which inherits from the parent layout. If no
+parent, the default is \code{NULL}, meaning no spaces are removed.}
 
-\item{plot_data}{A function used to transform the plot data before rendering.
-By default, it'll inherit from the parent layout. If no parent layout, the
-default is to not modify the data. Use \code{NULL}, if you don't want to modify
-anything.
+\item{plot_data}{A function to transform plot data before rendering. Defaults
+to \code{\link[ggplot2:waiver]{waiver()}}, which inherits from the parent layout. If
+no parent layout, the default is \code{NULL}, meaning the data won't be modified.
 
-Used to modify the data after layout has been created, but before the data is
-handled of to the ggplot2 for rendering. Use this hook if the you needs
-change the default data for all \code{geoms}.}
+Used to modify the data after layout has been created, which should be a data
+frame, but before the data is handled of to the ggplot2 for rendering. Use
+this hook if the you needs change the default data for all \code{geoms}.}
 
-\item{theme}{A \link[ggplot2:theme]{theme()} object to rendering the guides, title, subtitle, caption, margins and background. Only used when position is \code{NULL}.}
+\item{theme}{Default theme for the plot in the layout. One of:
+\itemize{
+\item \code{\link[ggplot2:waiver]{waiver()}}: will inherit from the parent layout.
+\item \code{NULL}: Use the \link[=theme_ggalign]{default theme}.
+\item \code{\link[ggplot2:theme]{theme()}}: will be added with the parent layout theme.
+}}
+
+\item{free_labs}{A string with one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"} indicating
+which axis titles should be free from alignment. Defaults to
+\code{\link[ggplot2:waiver]{waiver()}}, which inherits from the parent layout. If no
+parent layout, no axis titles will be aligned. If \code{NULL}, all axis titles
+will be aligned.}
 
 \item{what}{What should get activated for the anntoation stack? Only used
-when position is not \code{NULL}. See \link{stack_active} for details.}
+when position is a string. Options include::
+\itemize{
+\item A single number or string of the plot elements in the stack layout.
+\item \code{NULL}: remove any active context.
+}}
+
+\item{width, height}{Heatmap body width/height, can be a \link[grid:unit]{unit} object.}
 }
 \value{
-A \code{heatmap_active} object which can be added into
-\link[=layout_heatmap]{HeatmapLayout}.
+A \code{heatmap_active} object which can be added into \link{heatmap_layout}.
 }
 \description{
 Determine the active context of heatmap layout

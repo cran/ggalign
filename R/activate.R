@@ -4,94 +4,94 @@
 #' values are follows:
 #'    * A string of `"top"`, `"left"`, `"bottom"`, or `"right"`.
 #'    * `NULL`: means set the active context into the `heatmap` itself.
-#' @param size A [unit][grid::unit] object to set the total size of the heatmap
-#' annotation. This will only be used if `what` is a string of `"top"`,
-#' `"left"`, `"bottom"`, or `"right"`.
-#'  - If position is `"top"` or `"bottom"`, `size` set the total height of the
+#' @param width,height `r rd_heatmap_size()`.
+#' @param size An [unit][grid::unit] object to set the total size of the heatmap
+#' annotation. This will only be used if `position` is a string.
+#'  - If `position` is `"top"` or `"bottom"`, `size` set the total height of the
 #' annotation.
-#'  - If position is `"left"` or `"right"`, `size` set the total width of the
+#'  - If `position` is `"left"` or `"right"`, `size` set the total width of the
 #' annotation.
-#' @param width,height Heatmap body width/height, can be a [unit][grid::unit]
-#' object. Only used when `position` is `NULL`.
-#' @param guides A boolean value or a string containing one or more of
-#' `r rd_values(.tlbr)` indicates Which guide should be collected. If `NULL`, no
-#' guides will be collected. Default: "tlbr".
-#' @param free_labs A boolean value or a string containing one or more of
-#' `r rd_values(.tlbr)` indicates which axis title should be free from
-#' alignment. If `NULL`, all axis title will be aligned. Default: "tlbr".
-#' @param free_spaces A character specifies the ggplot elements which won't
-#' count space sizes when alignment. If `NULL` (default), no space will be
-#' removed. See [free_space()] for allowed values.
-#' @param plot_data A function used to transform the plot data before rendering.
-#' By default, it'll inherit from the parent layout. If no parent layout, the
-#' default is to not modify the data. Use `NULL`, if you don't want to modify
-#' anything.
 #'
-#' Used to modify the data after layout has been created, but before the data is
-#' handled of to the ggplot2 for rendering. Use this hook if the you needs
-#' change the default data for all `geoms`.
-#' @param theme `r rd_theme()` Only used when position is `NULL`.
+#' @param guides `r rd_guides()`
+#'
+#'  - If `position` is `NULL`, this applies to the heamtap layout.
+#'  - If `position` is a string, this applies to the heatmap annotation stack
+#'    layout.
+#'
+#' @param free_guides Override the `guides` collection behavior specified in
+#' the heatmap layout. `r rd_free_guides()`
+#'
+#' `guides` argument controls the global guide collection behavior for all plots
+#' in the layout, while the `free_guides` argument overrides this for a single
+#' plot in the layout.
+#'
+#' @param free_labs A string with one or more of `r rd_values(.tlbr)` indicating
+#' which axis titles should be free from alignment. Defaults to
+#' [`waiver()`][ggplot2::waiver()], which inherits from the parent layout. If no
+#' parent layout, no axis titles will be aligned. If `NULL`, all axis titles
+#' will be aligned.
+#'
+#' @param free_spaces A string with one or more of `r rd_values(.tlbr)`
+#' indicating which border spaces should be removed. Defaults to
+#' [`waiver()`][ggplot2::waiver()], which inherits from the parent layout. If no
+#' parent, the default is `NULL`, meaning no spaces are removed.
+#'
+#' @param plot_data A function to transform plot data before rendering. Defaults
+#' to [`waiver()`][ggplot2::waiver()], which inherits from the parent layout. If
+#' no parent layout, the default is `NULL`, meaning the data won't be modified.
+#'
+#' Used to modify the data after layout has been created, which should be a data
+#' frame, but before the data is handled of to the ggplot2 for rendering. Use
+#' this hook if the you needs change the default data for all `geoms`.
+#'
+#' @param theme Default theme for the plot in the layout. `r rd_theme()`
 #' @param what What should get activated for the anntoation stack? Only used
-#' when position is not `NULL`. See [stack_active] for details.
-#' @return A `heatmap_active` object which can be added into
-#' [HeatmapLayout][layout_heatmap].
+#' when position is a string. `r rd_stack_what()`.
+#' @return A `heatmap_active` object which can be added into [heatmap_layout].
 #' @examples
 #' ggheatmap(matrix(rnorm(81), nrow = 9)) +
 #'     hmanno("top") +
 #'     align_dendro()
 #' @export
-hmanno <- function(position = NULL, size = NULL, width = NULL, height = NULL,
-                   guides = NA, free_labs = NA, free_spaces = NA,
-                   plot_data = NA, theme = NULL, what = waiver()) {
-    if (is.null(position)) {
-        position <- NA
-    } else {
-        position <- match.arg(position, .TLBR)
-    }
+hmanno <- function(position = NULL, size = NULL,
+                   guides = NA, free_guides = NA, free_spaces = NA,
+                   plot_data = NA, theme = NA, free_labs = NA, what = waiver(),
+                   width = NULL, height = NULL) {
+    if (!is.null(position)) position <- match.arg(position, .TLBR)
     if (!is.null(size)) size <- check_size(size)
+    active <- new_active(
+        guides = guides,
+        free_guides = free_guides,
+        free_labs = free_labs,
+        free_spaces = free_spaces,
+        plot_data = plot_data,
+        theme = theme
+    )
     if (!is.null(width)) width <- check_size(width)
     if (!is.null(height)) height <- check_size(height)
     if (!is.waive(what)) what <- check_stack_context(what)
-    if (!identical(guides, NA) && !is.waive(guides)) {
-        guides <- check_layout_position(guides)
-    }
-    if (!identical(free_labs, NA) && !is.waive(free_labs)) {
-        free_labs <- check_layout_position(free_labs)
-    }
-    if (!identical(free_spaces, NA) && !is.waive(free_spaces) &&
-        !is.null(free_spaces)) {
-        free_spaces <- check_ggelements(free_spaces)
-    }
-    if (!identical(plot_data, NA) && !is.waive(plot_data)) {
-        plot_data <- check_plot_data(plot_data)
-    }
-    assert_s3_class(theme, "theme", null_ok = TRUE)
-    structure(position,
-        what = what, size = size, width = width, height = height,
-        guides = guides, free_labs = free_labs, free_spaces = free_spaces,
-        plot_data = plot_data, theme = theme,
-        class = c("heatmap_active", "active")
+    structure(
+        list(
+            position = position, size = size,
+            width = width, height = height,
+            what = what, active = active
+        ),
+        class = "heatmap_active"
     )
 }
 
 #' Determine the active context of stack layout
 #'
-#' @param sizes A numeric or [unit][grid::unit] object of length `3` indicates
-#' the relative widths (`direction = "horizontal"`) / heights (`direction =
-#' "vertical"`).
+#' @param guides `r rd_guides()`
 #' @inheritParams hmanno
-#' @inheritParams align_plots
-#' @param what What should get activated for the stack layout? Possible values
-#' are follows:
-#'    * A single number or string of the plot elements in the stack layout.
-#'      Usually you are waive to use this, since the adding procedure can be
-#'      easily changed.
-#'    * `NULL`: Remove any active context, this is useful when the active
-#'      context is a [layout_heatmap()] object, where any `Align` objects will
-#'      be added into the heatmap. By removing the active context, we can add
-#'      `Align` object into the [layout_stack()] .
+#' @inheritParams stack_layout
+#' @param what What should get activated for the stack layout?
+#' `r rd_stack_what()`, this is useful when the active context is a
+#' [heatmap_layout()] object, where any `align_*()` will be added into the
+#' heatmap. By removing the active context, we can add `align_*()` into the
+#' [stack_layout()].
 #' @return A `stack_active` object which can be added into
-#' [StackLayout][layout_stack].
+#' [StackLayout][stack_layout].
 #' @examples
 #' ggstack(matrix(1:9, nrow = 3L)) +
 #'     ggheatmap() +
@@ -103,34 +103,86 @@ hmanno <- function(position = NULL, size = NULL, width = NULL, height = NULL,
 #'     # here we add a dendrogram to the stack.
 #'     align_dendro()
 #' @export
-stack_active <- function(sizes = NULL, guides = NA,
-                         free_labs = NA, free_spaces = NA, plot_data = NA,
-                         theme = NULL, what = NULL) {
-    what <- check_stack_context(what)
+stack_active <- function(guides = NA, free_spaces = NA,
+                         plot_data = NA, theme = NA,
+                         free_labs = NA, what = NULL,
+                         sizes = NULL) {
+    if (!is.waive(what)) what <- check_stack_context(what)
     if (!is.null(sizes)) sizes <- check_stack_sizes(sizes)
-    if (!identical(guides, NA) && !is.waive(guides)) {
-        guides <- check_layout_position(guides)
-    }
-    if (!identical(free_labs, NA) && !is.waive(free_labs)) {
-        free_labs <- check_layout_position(free_labs)
-    }
-    if (!identical(free_spaces, NA) && !is.waive(free_spaces) &&
-        !is.null(free_spaces)) {
-        free_spaces <- check_ggelements(free_spaces)
-    }
-    if (!identical(plot_data, NA) && !is.waive(plot_data)) {
-        plot_data <- check_plot_data(plot_data)
-    }
-    assert_s3_class(theme, "theme", null_ok = TRUE)
-    structure(what,
-        sizes = sizes,
+    active <- new_active(
         guides = guides,
+        # for a stack, it is the top-level, what we need is the `guides`
+        # argument only
+        free_guides = NA,
         free_labs = free_labs,
         free_spaces = free_spaces,
         plot_data = plot_data,
-        theme = theme,
-        class = c("stack_active", "active")
+        theme = theme
     )
+    structure(
+        list(what = what, sizes = sizes, active = active),
+        class = "stack_active"
+    )
+}
+
+new_active <- function(guides, free_guides,
+                       free_labs, free_spaces, plot_data, theme,
+                       call = caller_call()) {
+    if (!identical(guides, NA)) {
+        assert_layout_position(guides, call = call)
+    }
+    if (!identical(free_guides, NA)) {
+        assert_layout_position(free_guides, call = call)
+    }
+    if (!identical(free_labs, NA)) {
+        assert_layout_position(free_labs, call = call)
+    }
+    if (!identical(free_spaces, NA)) {
+        assert_layout_position(free_spaces, call = call)
+    }
+    if (!identical(plot_data, NA)) {
+        plot_data <- check_plot_data(plot_data, call = call)
+    }
+    if (!identical(theme, NA) && !is.waive(theme) && !is.null(theme)) {
+        assert_s3_class(theme, "theme", call = call)
+    }
+    structure(
+        list(
+            guides = guides,
+            free_guides = free_guides,
+            free_labs = free_labs,
+            free_spaces = free_spaces,
+            plot_data = plot_data,
+            theme = theme
+        ),
+        class = "active"
+    )
+}
+
+layout_add_active <- function(object, layout, object_name) {
+    if (!identical(guides <- .subset2(object, "guides"), NA)) {
+        layout@params$guides <- guides
+    }
+    if (!identical(free_guides <- .subset2(object, "free_guides"), NA)) {
+        layout@params$free_guides <- free_guides
+    }
+    if (!identical(free_labs <- .subset2(object, "free_labs"), NA)) {
+        layout@params$free_labs <- free_labs
+    }
+    if (!identical(free_spaces <- .subset2(object, "free_spaces"), NA)) {
+        layout@params$free_spaces <- free_spaces
+    }
+    if (!identical(plot_data <- .subset2(object, "plot_data"), NA)) {
+        layout@params$plot_data <- plot_data
+    }
+    if (!identical(theme <- .subset2(object, "theme"), NA)) {
+        if (is.waive(layout@params$theme) || is.null(layout@params$theme)) {
+            layout@params$theme <- theme
+        } else {
+            layout@params$theme <- layout@params$theme + theme
+        }
+    }
+    layout
 }
 
 ########################################################
@@ -150,20 +202,21 @@ set_context.HeatmapLayout <- function(x, context) {
 
 #' @export
 set_context.StackLayout <- function(x, context) {
-    if (is.na(context)) {
-        context <- NULL
+    if (is.null(context)) {
     } else if ((l <- length(x@plots)) == 0L) {
         cli::cli_abort("No contexts in the stack layout to be activated")
     } else if (is.character(name <- context)) {
-        context <- which(name == names(x@plots))
-        if (length(context) == 0L) {
+        context <- match(name, names(x@plots))
+        if (is.na(context)) {
             cli::cli_abort("Cannot find {name} plot in this stack layout")
         }
     } else if (context > l) {
-        cli::cli_abort(paste(
-            "Canno determine the context",
-            "the stack layout has only {l} context{?s}",
-            sep = ", "
+        cli::cli_abort(c(
+            "Cannot determine the context",
+            i = paste(
+                "the stack layout has only {l} context{?s} but you provided",
+                "an integer index ({context})"
+            )
         ))
     }
     x@active <- context

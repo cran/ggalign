@@ -11,9 +11,11 @@ align(
   params,
   data,
   size = NULL,
-  free_labs = waiver(),
+  free_guides = waiver(),
   free_spaces = waiver(),
   plot_data = waiver(),
+  theme = waiver(),
+  free_labs = waiver(),
   limits = TRUE,
   facet = TRUE,
   set_context = TRUE,
@@ -24,42 +26,66 @@ align(
 )
 }
 \arguments{
-\item{data}{A matrix, a data frame, or even a simple vector that will be
-converted into a one-column matrix. If the \code{data} argument is set to \code{NULL},
-the \verb{align_*} will use the \code{layout} data. Additionally, the \code{data} argument
-can also accept a function (purrr-like lambda is also okay), which will be
-applied with the \code{layout} data,
+\item{data}{A matrix, data frame, or a simple vector. If an atomic vector is
+provided, it will be converted into a one-column matrix. When \code{data = NULL},
+the internal \code{layout} data will be used by default. Additionally, \code{data} can
+be a function (including purrr-like lambdas), which will be applied to the
+\code{layout} data.
 
-It is important to note that all \verb{align_*} functions consider the \code{rows} as
-the observations. It means the \code{NROW(data)} must return the same number with
-the parallel \code{layout} axis.
+It is important to note that we consider the \code{rows} as the observations. It
+means the \code{NROW(data)} must return the same number with the specific \code{layout}
+axis (meaning the x-axis for vertical stack layout, or y-axis for horizontal
+stack layout).
 \itemize{
-\item \code{layout_heatmap}: for column annotation, the \code{layout} data will be
+\item \code{heatmap_layout()}: for column annotation, the \code{layout} data will be
 transposed before using (If data is a \code{function}, it will be applied with
 the transposed matrix). This is necessary because column annotation uses
 heatmap columns as observations, but we need rows.
-\item \code{layout_stack}: the \code{layout} data will be used as it is since we place all
-plots along a single axis.
+\item \code{stack_layout()}: the \code{layout} data will be used as it is since we place
+all plots along a single axis.
 }}
 
 \item{size}{Plot size, can be an \link[grid:unit]{unit} object.}
 
-\item{free_labs}{A boolean value or a string containing one or more of
-\code{"t"},\code{"l"},\code{"b"},and \code{"r"} indicates which axis title should be free from
-alignment. If \code{NULL}, all axis title will be aligned. Default: "tlbr".}
+\item{free_guides}{Override the \code{guides} argument specified in the layout for
+a plot. Options include:
+\itemize{
+\item \code{\link[ggplot2:waiver]{waiver()}}: inherits behavior from the layout.
+\item \code{NULL}: no guide legends will be collected for the plot.
+\item A string containing one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"} indicates which side of guide legends should be collected for the plot..
+}}
 
-\item{free_spaces}{A character specifies the ggplot elements which won't
-count space sizes when alignment. If \code{NULL} (default), no space will be
-removed. See \code{\link[=free_space]{free_space()}} for allowed values.}
+\item{free_spaces}{A string with one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"}
+indicating which border spaces should be removed. Defaults to
+\code{\link[ggplot2:waiver]{waiver()}}, which inherits from the parent layout. If no
+parent, the default is \code{NULL}, meaning no spaces are removed.}
 
-\item{plot_data}{A function used to transform the plot data before rendering.
-By default, it'll inherit from the parent layout. If no parent layout, the
-default is to not modify the data. Use \code{NULL}, if you don't want to modify
-anything.
+\item{plot_data}{A function to transform plot data before rendering. Defaults
+to \code{\link[ggplot2:waiver]{waiver()}}, which inherits from the parent layout. If
+no parent layout, the default is \code{NULL}, meaning the data won't be modified.
 
-Used to modify the data after layout has been created, but before the data is
-handled of to the ggplot2 for rendering. Use this hook if the you needs
-change the default data for all \code{geoms}.}
+Used to modify the data after layout has been created, which should be a data
+frame, but before the data is handled of to the ggplot2 for rendering. Use
+this hook if the you needs change the default data for all \code{geoms}.}
+
+\item{theme}{Default plot theme: One of:
+\itemize{
+\item \code{\link[ggplot2:waiver]{waiver()}}: will inherit from the parent layout.
+\item \code{NULL}: Use the \link[=theme_ggalign]{default theme}.
+\item \code{\link[ggplot2:theme]{theme()}}: will be added with the parent layout theme.
+}
+
+\verb{Note:} The axis title and labels parallel to the layout axis will always be
+removed by default. For vertical stack layouts, this refers to the \code{x-axis},
+and for horizontal stack layouts, this refers to the \code{y-axis}. If you want to
+display the axis title or labels, you should manually add
+\link[ggplot2:theme]{theme()} elements for the parallel axis title or labels.}
+
+\item{free_labs}{A string with one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"} indicating
+which axis titles should be free from alignment. Defaults to
+\code{\link[ggplot2:waiver]{waiver()}}, which inherits from the parent layout. If no
+parent layout, no axis titles will be aligned. If \code{NULL}, all axis titles
+will be aligned.}
 
 \item{limits}{A boolean value indicates whether to set the layout limtis for
 the plot.}
@@ -71,7 +97,7 @@ the plot. If this is \code{FALSE}, \code{limits} will always be \code{FALSE} too
 context to current plot. If \code{TRUE}, all subsequent ggplot elements will be
 added into this plot.}
 
-\item{order}{An single integer for the layout order.}
+\item{order}{An single integer for the plot area order.}
 
 \item{name}{A string of the plot name. Used to switch the active context in
 \code{\link[=hmanno]{hmanno()}} or \code{\link[=stack_active]{stack_active()}}.}

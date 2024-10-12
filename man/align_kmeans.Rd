@@ -4,52 +4,45 @@
 \alias{align_kmeans}
 \title{Split layout by k-means clustering groups.}
 \usage{
-align_kmeans(
-  centers,
-  iter.max = 10,
-  nstart = 1,
-  algorithm = c("Hartigan-Wong", "Lloyd", "Forgy", "MacQueen"),
-  trace = FALSE,
-  data = NULL,
-  set_context = FALSE,
-  name = NULL
-)
+align_kmeans(centers, ..., data = NULL, set_context = FALSE, name = NULL)
 }
 \arguments{
 \item{centers}{either the number of clusters, say \eqn{k}, or a set of
     initial (distinct) cluster centres.  If a number, a random set of
     (distinct) rows in \code{x} is chosen as the initial centres.}
 
-\item{iter.max}{the maximum number of iterations allowed.}
-
-\item{nstart}{if \code{centers} is a number, how many random sets
+\item{...}{
+  Arguments passed on to \code{\link[stats:kmeans]{stats::kmeans}}
+  \describe{
+    \item{\code{iter.max}}{the maximum number of iterations allowed.}
+    \item{\code{nstart}}{if \code{centers} is a number, how many random sets
     should be chosen?}
-
-\item{algorithm}{character: may be abbreviated.  Note that
+    \item{\code{algorithm}}{character: may be abbreviated.  Note that
     \code{"Lloyd"} and \code{"Forgy"} are alternative names for one
     algorithm.}
-
-\item{trace}{logical or integer number, currently only used in the
+    \item{\code{trace}}{logical or integer number, currently only used in the
     default method (\code{"Hartigan-Wong"}): if positive (or true),
     tracing information on the progress of the algorithm is
     produced.  Higher values may produce more tracing information.}
+  }}
 
-\item{data}{A matrix, a data frame, or even a simple vector that will be
-converted into a one-column matrix. If the \code{data} argument is set to \code{NULL},
-the \verb{align_*} will use the \code{layout} data. Additionally, the \code{data} argument
-can also accept a function (purrr-like lambda is also okay), which will be
-applied with the \code{layout} data,
+\item{data}{A matrix, data frame, or a simple vector. If an atomic vector is
+provided, it will be converted into a one-column matrix. When \code{data = NULL},
+the internal \code{layout} data will be used by default. Additionally, \code{data} can
+be a function (including purrr-like lambdas), which will be applied to the
+\code{layout} data.
 
-It is important to note that all \verb{align_*} functions consider the \code{rows} as
-the observations. It means the \code{NROW(data)} must return the same number with
-the parallel \code{layout} axis.
+It is important to note that we consider the \code{rows} as the observations. It
+means the \code{NROW(data)} must return the same number with the specific \code{layout}
+axis (meaning the x-axis for vertical stack layout, or y-axis for horizontal
+stack layout).
 \itemize{
-\item \code{layout_heatmap}: for column annotation, the \code{layout} data will be
+\item \code{heatmap_layout()}: for column annotation, the \code{layout} data will be
 transposed before using (If data is a \code{function}, it will be applied with
 the transposed matrix). This is necessary because column annotation uses
 heatmap columns as observations, but we need rows.
-\item \code{layout_stack}: the \code{layout} data will be used as it is since we place all
-plots along a single axis.
+\item \code{stack_layout()}: the \code{layout} data will be used as it is since we place
+all plots along a single axis.
 }}
 
 \item{set_context}{A single boolean value indicates whether to set the active

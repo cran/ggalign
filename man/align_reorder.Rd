@@ -2,47 +2,48 @@
 % Please edit documentation in R/align-reorder.R
 \name{align_reorder}
 \alias{align_reorder}
-\title{Reorders layout observations based on weights or summary statistics.}
+\title{Reorders layout observations based on specific statistics.}
 \usage{
 align_reorder(
-  fun = rowMeans,
+  stat,
   ...,
+  reverse = FALSE,
   strict = TRUE,
-  decreasing = FALSE,
   data = NULL,
   set_context = FALSE,
   name = NULL
 )
 }
 \arguments{
-\item{fun}{A summary function. It should take a data and return the weights
-for the layout observations.}
+\item{stat}{A summary function which accepts a data and returns the
+statistic, which we'll call \code{\link[=order2]{order2()}} to extract the ordering information.}
 
-\item{...}{Additional arguments passed to \code{fun}.}
+\item{...}{<\link[rlang:dyn-dots]{dyn-dots}> Additional arguments passed to
+function provided in \code{stat} argument.}
+
+\item{reverse}{A boolean value. Should the sort order be in reverse?}
 
 \item{strict}{A boolean value indicates whether the order should be strict.
 If previous groups has been established, and strict is \code{FALSE}, this will
 reorder the observations in each group.}
 
-\item{decreasing}{A boolean value. Should the sort order be increasing or
-decreasing?}
+\item{data}{A matrix, data frame, or a simple vector. If an atomic vector is
+provided, it will be converted into a one-column matrix. When \code{data = NULL},
+the internal \code{layout} data will be used by default. Additionally, \code{data} can
+be a function (including purrr-like lambdas), which will be applied to the
+\code{layout} data.
 
-\item{data}{A matrix, a data frame, or even a simple vector that will be
-converted into a one-column matrix. If the \code{data} argument is set to \code{NULL},
-the \verb{align_*} will use the \code{layout} data. Additionally, the \code{data} argument
-can also accept a function (purrr-like lambda is also okay), which will be
-applied with the \code{layout} data,
-
-It is important to note that all \verb{align_*} functions consider the \code{rows} as
-the observations. It means the \code{NROW(data)} must return the same number with
-the parallel \code{layout} axis.
+It is important to note that we consider the \code{rows} as the observations. It
+means the \code{NROW(data)} must return the same number with the specific \code{layout}
+axis (meaning the x-axis for vertical stack layout, or y-axis for horizontal
+stack layout).
 \itemize{
-\item \code{layout_heatmap}: for column annotation, the \code{layout} data will be
+\item \code{heatmap_layout()}: for column annotation, the \code{layout} data will be
 transposed before using (If data is a \code{function}, it will be applied with
 the transposed matrix). This is necessary because column annotation uses
 heatmap columns as observations, but we need rows.
-\item \code{layout_stack}: the \code{layout} data will be used as it is since we place all
-plots along a single axis.
+\item \code{stack_layout()}: the \code{layout} data will be used as it is since we place
+all plots along a single axis.
 }}
 
 \item{set_context}{A single boolean value indicates whether to set the active
@@ -56,10 +57,24 @@ added into this plot.}
 A new \code{Align} object.
 }
 \description{
-Reorders layout observations based on weights or summary statistics.
+Reorders layout observations based on specific statistics.
+}
+\details{
+The \code{align_reorder()} function differs from \code{align_order()} in that the \code{wts}
+argument in \code{align_order()} must return atomic weights for each observation.
+In contrast, the \code{stat} argument in \code{align_reorder()} can return more complex
+structures, such as \link[stats:hclust]{hclust} or
+\link[stats:dendrogram]{dendrogram}, among others.
+
+Typically, you can achieve the functionality of \code{align_reorder()} using
+\code{align_order()} by manually extracting the ordering information from
+the statistic.
 }
 \examples{
 ggheatmap(matrix(rnorm(81), nrow = 9)) +
     hmanno("l") +
-    align_reorder()
+    align_reorder(hclust2)
+}
+\seealso{
+\code{\link[=order2]{order2()}}
 }

@@ -1,6 +1,7 @@
 #' Split layout by k-means clustering groups.
 #'
 #' @inheritParams stats::kmeans
+#' @inheritDotParams stats::kmeans -x -centers
 #' @inheritParams align
 #' @inherit align return
 #' @examples
@@ -8,29 +9,19 @@
 #'     hmanno("t") +
 #'     align_kmeans(3L)
 #' @export
-align_kmeans <- function(centers, iter.max = 10, nstart = 1,
-                         algorithm = c(
-                             "Hartigan-Wong", "Lloyd", "Forgy",
-                             "MacQueen"
-                         ), trace = FALSE,
+align_kmeans <- function(centers, ...,
                          data = NULL, set_context = FALSE, name = NULL) {
-    algorithm <- match.arg(algorithm)
     align(
         align_class = AlignKmeans,
-        params = list(
-            centers = centers,
-            iter.max = iter.max,
-            nstart = nstart,
-            algorithm = algorithm,
-            trace = trace
-        ),
+        params = list(centers = centers, params = rlang::list2(...)),
         set_context = set_context,
-        name = name, order = NULL, 
+        name = name, order = NULL,
         data = data %||% waiver()
     )
 }
 
-AlignKmeans <- ggplot2::ggproto("AlignKmeans", Align,
+#' @importFrom ggplot2 ggproto
+AlignKmeans <- ggproto("AlignKmeans", Align,
     setup_data = function(self, params, data) {
         ans <- as.matrix(data)
         assert_(
@@ -39,13 +30,11 @@ AlignKmeans <- ggplot2::ggproto("AlignKmeans", Align,
         )
         ans
     },
-    compute = function(self, panel, index,
-                       centers, iter.max, nstart, algorithm, trace) {
+    compute = function(self, panel, index, centers, params) {
         data <- .subset2(self, "data")
-        stats::kmeans(data, centers, iter.max, nstart, algorithm, trace)
+        rlang::inject(stats::kmeans(x = data, centers = centers, !!!params))
     },
     layout = function(self, panel, index) {
-        assert_sub_split(self, panel)
         list(.subset2(.subset2(self, "statistics"), "cluster"), index)
     }
 )

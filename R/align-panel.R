@@ -9,14 +9,17 @@
 #' @inheritParams ggplot2::ggplot
 #'
 #' @section ggplot2 specification:
-#' `align_panel` initializes a `ggplot` data and `mapping`.
+#' `align_panel` initializes a ggplot `data` and `mapping`.
 #'
-#' The internal will always use a default mapping of `aes(y = .data$.y)` or
-#' `aes(x = .data$.x)`.
+#' `align_panel()` always applies a default mapping for the axis of the data
+#' index in the layout. This mapping is `aes(y = .data$.y)` for horizontal stack
+#' layout (including left and right heatmap annotation) and `aes(x = .data$.x)`
+#' for vertical stack layout (including top and bottom heatmap annotation).
 #'
 #' The data in the underlying `ggplot` object contains following columns:
 #'
-#'  - `.panel`: the panel for current layout axis.
+#'  - `.panel`: the panel for current layout axis. It means `x-axis` for
+#'    vertical stack layout, `y-axis` for horizontal stack layout.
 #'
 #'  - `.index`: the index of the original layout data.
 #'
@@ -31,16 +34,17 @@
 #' @importFrom rlang caller_call current_call
 #' @export
 align_panel <- function(mapping = aes(), size = NULL,
-                        free_labs = waiver(), free_spaces = waiver(),
-                        plot_data = waiver(),
+                        free_guides = waiver(), free_spaces = waiver(),
+                        plot_data = waiver(), theme = waiver(),
+                        free_labs = waiver(),
                         limits = TRUE, facet = TRUE,
                         set_context = TRUE, order = NULL, name = NULL) {
     assert_mapping(mapping)
     align(AlignPanel,
         params = list(mapping = mapping),
-        size = size, data = NULL,
+        size = size, data = NULL, free_guides = free_guides,
         free_labs = free_labs, free_spaces = free_spaces,
-        plot_data = plot_data,
+        plot_data = plot_data, theme = theme,
         set_context = set_context, order = order, name = name
     )
 }
@@ -49,7 +53,8 @@ align_panel <- function(mapping = aes(), size = NULL,
 #' @rdname align_panel
 ggpanel <- align_panel
 
-AlignPanel <- ggplot2::ggproto("AlignPanel", Align,
+#' @importFrom ggplot2 ggproto
+AlignPanel <- ggproto("AlignPanel", Align,
     nobs = function(self) {
         axis <- to_coord_axis(.subset2(self, "direction"))
         cli::cli_abort(c(
@@ -60,7 +65,7 @@ AlignPanel <- ggplot2::ggproto("AlignPanel", Align,
     ggplot = function(self, mapping) {
         direction <- .subset2(self, "direction")
         ans <- ggplot2::ggplot(mapping = mapping) +
-            align_theme(direction) +
+            # remove the title and text of axis vertically with the layout
             switch_direction(
                 direction,
                 theme(

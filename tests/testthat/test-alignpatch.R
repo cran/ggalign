@@ -50,11 +50,12 @@ test_that("The grid can be controlled", {
         align_plots(p1, p2, p3, p4, heights = grid::unit(3, "cm"))
     })
 
-    expect_doppelganger("Setting annotation", {
-        align_plots(p1, p2, p3, p4,
-            title = "I'm title", subtitle = "I'm subtitle",
-            caption = "I'm caption"
-        )
+    expect_doppelganger("Setting title", {
+        align_plots(p1, p2, p3, p4) +
+            layout_title(
+                title = "I'm title", subtitle = "I'm subtitle",
+                caption = "I'm caption"
+            )
     })
 
     expect_doppelganger("patch titles", {
@@ -73,6 +74,43 @@ test_that("The grid can be controlled", {
                 theme(plot.patch_title.left = element_text(face = "bold"))
         )
     })
+    expect_doppelganger("background and panel border", {
+        align_plots(
+            p1 + theme(plot.background = element_blank()),
+            p2 + theme(plot.background = element_blank()),
+            align_plots(
+                p3 + theme(plot.background = element_blank()),
+                p4 + theme(plot.background = element_blank())
+            ) +
+                layout_annotation(
+                    theme = theme(
+                        panel.border = element_rect(colour = "blue"),
+                        plot.background = element_rect(
+                            fill = "yellow", color = "black",
+                            linewidth = unit(1, "cm")
+                        )
+                    )
+                )
+        ) +
+            layout_title(
+                title = "I'm layout title",
+                subtitle = "I'm layout subtitle",
+                caption = "I'm layout caption"
+            ) + layout_annotation(
+                theme = theme(
+                    panel.border = element_rect(colour = "red"),
+                    plot.background = element_rect(
+                        fill = "green", color = "black",
+                        linewidth = unit(1, "cm")
+                    )
+                )
+            )
+    })
+})
+
+test_that("`ggsave()` works well", {
+    p <- align_plots(p1, p2, p3, p4, widths = c(1, 2))
+    expect_no_error(ggplot2::ggsave(tempfile(fileext = ".png"), plot = p))
 })
 
 test_that("collect guides works well", {
@@ -180,4 +218,80 @@ test_that("`free_border()` works well", {
             ncol = 2L
         )
     })
+})
+
+test_that("`free_space()` works well", {
+    p1 <- ggplot(mtcars) +
+        geom_bar(aes(y = factor(gear), fill = factor(gear))) +
+        scale_y_discrete(
+            "",
+            labels = c(
+                "3 gears are often enough",
+                "But, you know, 4 is a nice number",
+                "I would def go with 5 gears in a modern car"
+            )
+        )
+    # When combined with other plots it ends up looking bad
+    p2 <- ggplot(mtcars) +
+        geom_point(aes(mpg, disp))
+    expect_doppelganger("free_space() with ggplot", {
+        align_plots(NULL, free_space(p1, "l"), p2, p2)
+    })
+    expect_doppelganger("free_space() with alignpatches", {
+        align_plots(NULL, free_space(align_plots(p1), "l"), p2, p2)
+    })
+})
+
+test_that("`free_guide()` works well", {
+    p_right <- p3 + ggtitle(NULL) + labs(color = "right")
+    p_top <- p_right +
+        scale_color_continuous(
+            name = "top",
+            guide = guide_colorbar(position = "top")
+        )
+    p_left <- p_right +
+        scale_color_continuous(
+            name = "left",
+            guide = guide_colorbar(position = "left")
+        )
+    p_bottom <- p_right +
+        scale_color_continuous(
+            name = "bottom",
+            guide = guide_colorbar(position = "bottom")
+        )
+    p_guides <- align_plots(
+        p_right + scale_color_continuous(
+            name = "patches_top",
+            guide = guide_colorbar(position = "top")
+        ),
+        p_right + scale_color_continuous(
+            name = "patches_left",
+            guide = guide_colorbar(position = "left")
+        ),
+        p_right + scale_color_continuous(
+            name = "patches_bottom",
+            guide = guide_colorbar(position = "bottom")
+        ),
+        p_right + scale_color_continuous(name = "patches_right"),
+        guides = "tlbr"
+    )
+    expect_doppelganger(
+        "free_guide() with ggplot",
+        align_plots(
+            p_guides,
+            free_guide(p_top, "l"),
+            free_guide(p_left, "t"),
+            free_guide(p_bottom, "l"),
+            free_guide(p_right, "t"),
+            guides = "tlbr"
+        )
+    )
+    expect_doppelganger(
+        "free_guide() with alignpatches",
+        align_plots(
+            free_guide(p_guides, "tlbr"),
+            p_top, p_left, p_bottom, p_right,
+            guides = "tlbr"
+        )
+    )
 })

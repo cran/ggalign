@@ -1,168 +1,241 @@
+#' @importFrom ggplot2 ggproto
 #' @export
-patch_align.gtable_alignpatches <- function(gt, guides,
-                                            panel_width, panel_height) {
-    list(
-        gt = make_full_patch(gt, clip = "off", name = "alignpatches-table"),
-        width = panel_width, height = panel_height, respect = FALSE
-    )
+alignpatch.alignpatches <- function(x) {
+    ggproto(NULL, PatchAlignpatches, plot = x)
 }
 
-#' @importFrom gtable gtable
-#' @importFrom grid unit
-#' @export
-#' @rdname alignpatch
-#' @order 4
-patch_gtable.alignpatches <- function(patch, guides) {
-    plots <- .subset2(patch, "plots")
-    layout <- .subset2(patch, "layout")
+#' @importFrom vctrs new_data_frame
+PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
+    # We by default won't collect any guides
+    guides = NULL,
+    set_theme = function(theme) theme,
+    #' @importFrom gtable gtable gtable_add_grob
+    #' @importFrom grid unit
+    #' @importFrom ggplot2 wrap_dims calc_element zeroGrob
+    #' @importFrom vctrs vec_slice
+    patch_gtable = function(self, top_level = FALSE, plot = self$plot) {
+        patches <- lapply(.subset2(plot, "plots"), alignpatch)
+        layout <- .subset2(plot, "layout")
 
-    # complete the theme object
-    theme <- complete_theme(.subset2(layout, "theme"))
-
-    # get the design areas and design dims ------------------
-    panel_widths <- .subset2(layout, "widths")
-    panel_heights <- .subset2(layout, "heights")
-    if (is.null(design <- .subset2(layout, "design"))) {
-        if (is.null(layout$ncol) && length(panel_widths) > 1L) {
-            layout$ncol <- length(panel_widths)
+        # get the design areas and design dims ------------------
+        panel_widths <- .subset2(layout, "widths")
+        panel_heights <- .subset2(layout, "heights")
+        if (is.null(design <- .subset2(layout, "design"))) {
+            if (is.null(layout$ncol) && length(panel_widths) > 1L) {
+                layout$ncol <- length(panel_widths)
+            }
+            if (is.null(layout$nrow) && length(panel_heights) > 1L) {
+                layout$nrow <- length(panel_heights)
+            }
+            dims <- wrap_dims(
+                length(patches),
+                .subset2(layout, "nrow"),
+                .subset2(layout, "ncol")
+            )
+            design <- create_design(
+                dims[2L], dims[1L],
+                .subset2(layout, "byrow")
+            )
+        } else {
+            dims <- c(max(.subset2(design, "b")), max(.subset2(design, "r")))
         }
-        if (is.null(layout$nrow) && length(panel_heights) > 1L) {
-            layout$nrow <- length(panel_heights)
+
+        # filter `plots` based on the design areas --------------------
+        if (nrow(design) < length(patches)) {
+            cli::cli_warn(
+                "Too few patch areas to hold all plots. Dropping plots"
+            )
+            plots <- patches[seq_len(nrow(design))]
+        } else {
+            design <- vec_slice(design, seq_along(patches))
         }
-        dims <- ggplot2::wrap_dims(
-            length(plots),
-            .subset2(layout, "nrow"),
-            .subset2(layout, "ncol")
-        )
-        design <- create_design(dims[2L], dims[1L], .subset2(layout, "byrow"))
-    } else {
-        dims <- c(max(.subset2(design, "b")), max(.subset2(design, "r")))
-    }
 
-    # filter gt based on the design areas --------------------
-    design <- quickdf(design)
-    if (nrow(design) < length(plots)) {
-        cli::cli_warn("Too few patch areas to hold all plots. Dropping plots")
-        plots <- plots[seq_len(nrow(design))]
-    } else {
-        design <- design[seq_along(plots), , drop = FALSE]
-    }
+        # remove NULL patch -----------------------------------
+        keep <- !vapply(patches, is.null, logical(1L), USE.NAMES = FALSE)
+        patches <- .subset(patches, keep)
 
-    # we use R6 object here, since we need modify the gtables of the plots
-    # across the building process
-    builder <- ggplot2::ggproto(NULL, AlignPatches, gt_list = NULL)
-    builder$build(plots,
-        design = design, dims = dims,
-        panel_widths = panel_widths,
-        panel_heights = panel_heights,
-        guides = .subset2(layout, "guides"),
-        theme = theme
-    )
-}
+        # if no plots, we return empty gtable -----------------
+        if (is_empty(patches)) return(make_patch_table()) # styler: off
 
-#' @importFrom ggplot2 zeroGrob
-#' @importFrom gtable gtable gtable_add_grob
-#' @importFrom grid unit
-AlignPatches <- ggplot2::ggproto(
-    "AlignPatches", NULL,
-    build = function(self, plots, design, dims,
-                     panel_widths, panel_heights, guides, theme) {
+        # add borders to patch --------------------------------
+        design <- vec_slice(design, keep)
+        for (i in seq_along(patches)) {
+            patches[[i]]$borders <- c(
+                if (.subset2(design, "t")[i] == 1L) "top" else NULL,
+                if (.subset2(design, "l")[i] == 1L) "left" else NULL,
+                if (.subset2(design, "b")[i] == .subset(dims, 1L)) {
+                    "bottom"
+                } else {
+                    NULL
+                },
+                if (.subset2(design, "r")[i] == .subset(dims, 2L)) {
+                    "right"
+                } else {
+                    NULL
+                }
+            )
+        }
+
+        # we inherit parameters from the parent --------------------
+        # in `alignpatches` object, `self$guides` and `self$theme` will always
+        # be the parent parameters, we always attach the parent `gudies` and
+        # `theme` in `self`
+        #
+        # `self$guides` by default is `NULl`, if this is a
+        # nested alignpatches, `self$guides` should be set by
+        # `$set_guides()` method, which is the parent guides
+        guides <- .subset2(layout, "guides") %|w|% self$guides
+        # the same applies to theme but use `$set_theme()` method
+        # the top-level alignpatches will always complete theme in
+        # `ggalign_gtable.alignpatches`.
+        if (is.null(theme <- .subset2(plot, "theme"))) {
+            theme <- self$theme
+        } else {
+            theme <- complete_theme(theme)
+        }
+
+        for (patch in patches) {
+            # Let each patch to determine whether to collect guides
+            patch$guides <- patch$set_guides(guides)
+            # inherit theme for nested `alignpatches` object only
+            patch$theme <- patch$set_theme(theme)
+        }
+
+        # save patches, patches won't be copy -------------------
+        self$patches <- patches
+
+        #######################################################
+        # 1. patch_gtable: create the gtable for the patch, will set internal
+        #    `gt`
+        # 2. collect_guides_list: call `collect_guides`, can change the internal
+        #    `gt`
+        # 3. set_sizes:
+        #     - (TODO) align_panel_spaces: can change the internal `gt`
+        #     - align_panel_sizes, can change the internal `gt`
+        # 4. set_grobs: will call `align_border` and `split_gt`, return the
+        #    final gtable
+        # setup gtable list ----------------------------------
+        for (patch in patches) patch$gt <- patch$patch_gtable()
+
+        # collect guides  ---------------------------------------
+        collected_guides <- self$collect_guides_list(patches)
+
         # prepare the output ----------------------------------
         gt <- gtable(
             unit(rep(0L, TABLE_COLS * dims[2L]), "null"),
             unit(rep(0L, TABLE_ROWS * dims[1L]), "null")
         )
 
-        # setup gtable list ----------------------------------
-        # create gtable from the plot
-        self$gt_list <- lapply(plots, patch_gtable, guides = guides)
-
-        # collect guides  ---------------------------------------
-        if (is.null(guides)) {
-            collected_guides <- NULL
-        } else {
-            # this'll also remove guides from `gt_list`
-            collected_guides <- self$collect_guides(guides)
-        }
-
         # setup sizes for each row/column -----------------------
         gt <- self$set_sizes(
-            gt, design, guides,
-            dims, panel_widths, panel_heights
+            design, dims, panel_widths, panel_heights,
+            patches = patches, gt = gt
         )
 
-        # setup grobs -------------------------------------------
-        gt <- self$set_grobs(gt, design)
-
-        # setup the output layout -------------------------------
-        gt <- self$set_layout(gt, design)
-
-        # `attach_guides` will use `align_border_size`
-        # we add the class here for usage of `attach_guides`
-        gt <- add_class(gt, "gtable_alignpatches")
+        # add the panel position --------------------------------
+        panel_pos <- list(
+            t = TOP_BORDER + 1L,
+            l = LEFT_BORDER + 1L,
+            b = TABLE_ROWS * dims[1L] - BOTTOM_BORDER,
+            r = TABLE_COLS * dims[2L] - RIGHT_BORDER
+        )
 
         # add guides into the final gtable ----------------------
-        panel_pos <- list(
-            t = PANEL_ROW,
-            l = PANEL_COL,
-            b = PANEL_ROW + TABLE_ROWS * (dims[1L] - 1L),
-            r = PANEL_COL + TABLE_COLS * (dims[2L] - 1L)
-        )
-        if (length(collected_guides)) {
-            # https://github.com/tidyverse/ggplot2/blob/57ba97fa04dadc6fd73db1904e39a09d57a4fcbe/R/guides-.R#L512
-            theme$legend.spacing <- theme$legend.spacing %||% unit(0.5, "lines")
-            theme$legend.spacing.y <- calc_element("legend.spacing.y", theme)
-            theme$legend.spacing.x <- calc_element("legend.spacing.x", theme)
-            theme$legend.box.spacing <- calc_element(
-                "legend.box.spacing", theme
-            ) %||% unit(0.2, "cm")
-            for (guide_pos in names(collected_guides)) {
-                gt <- attach_guides(
-                    gt, guide_pos,
-                    guides = .subset2(collected_guides, guide_pos),
-                    theme = theme,
-                    panel_pos = panel_pos
-                )
-            }
+        if (top_level) {
+            gt <- self$attach_guide_list(
+                guide_list = collected_guides,
+                theme = theme,
+                panel_pos = panel_pos,
+                gt = gt
+            )
+        } else {
+            # used by `$collect_guides() method`
+            # if this is a nested alignpatches, theme will be automatically
+            # attached by` $set_theme()`
+            self$collected_guides <- collected_guides
+            self$panel_pos <- panel_pos
         }
+
+        # setup grobs -------------------------------------------
+        # For z in the gtable layout
+        # 0L: layout background
+        # 1L: background of the plot
+        # 2L: plot table
+        # 3L: foreground of the panel area
+        # 4L: legends
+        gt <- self$set_grobs(design, patches = patches, gt = gt)
+
         # add panel area ---------------------------------------
-        gtable_add_grob(
-            gt, zeroGrob(),
+        gt <- gtable_add_grob(
+            gt, list(zeroGrob()),
             t = .subset2(panel_pos, "t"),
             l = .subset2(panel_pos, "l"),
             b = .subset2(panel_pos, "b"),
             r = .subset2(panel_pos, "r"),
-            z = -1L,
+            z = 0L,
             name = "panel-area"
         )
-    },
-    collect_guides = function(self, guides,
-                              gt_list = .subset2(self, "gt_list")) {
-        ans <- vector("list", length(gt_list))
-        for (i in seq_along(gt_list)) {
-            split <- collect_guides(.subset2(gt_list, i), guides)
-            gt_list[[i]] <- .subset2(split, "gt")
-            ans[[i]] <- .subset2(split, "guides")
-        }
-        # save the modified `gt_list`
-        self$gt_list <- gt_list
+        gt <- gtable_add_grob(
+            gt,
+            # foreground
+            list(element_render(theme, "panel.border", fill = NA)),
+            t = .subset2(panel_pos, "t"),
+            l = .subset2(panel_pos, "l"),
+            b = .subset2(panel_pos, "b"),
+            r = .subset2(panel_pos, "r"),
+            z = 3L,
+            name = "panel-foreground"
+        )
 
-        # collapse the guides in the same guide position
-        # remove duplicated guides
-        ans <- lapply(.TLBR, function(guide_pos) {
-            unlist(
-                lapply(ans, .subset2, guide_pos),
-                recursive = FALSE, use.names = FALSE
+        # add background -----------------------------------
+        if (!top_level && inherits(theme$plot.background, "element")) {
+            gt <- gtable_add_grob(gt,
+                element_render(theme, "plot.background"),
+                t = 1L, l = 1L, b = -1L, r = -1L,
+                name = "background", z = 0L
             )
+        }
+        gt
+    },
+    align_border = function(self, t = NULL, l = NULL, b = NULL, r = NULL,
+                            gt = self$gt, patches = self$patches) {
+        if (is.null(t) && is.null(l) && is.null(b) && is.null(r)) {
+            return(gt)
+        }
+        gt <- Patch$align_border(t = t, l = l, b = b, r = r, gt = gt)
+        self$recurse_lapply(function(patch, grob, t, l, b, r) {
+            # For each plot grob, we reuse it's method to set the border
+            # sizes we only set the border sizes for plot in the border
+            patch$align_border(t = t, l = l, b = b, r = r, gt = grob)
+        }, t = t, l = l, b = b, r = r, gt = gt, patches = patches)
+    },
+    # split_gt = function(self, gt = self$gt) list(bg = NULL, plot = gt),
+    collect_guides = function(self, guides = self$guides, gt = self$gt) {
+        collected_guides <- self$collected_guides
+        # for guides not collected by the top-level, we attach the guides
+        self$gt <- self$attach_guide_list(
+            .subset(collected_guides, setdiff(names(collected_guides), guides)),
+            gt = gt
+        )
+        # return guides to be collected
+        .subset(collected_guides, guides)
+    },
+    collect_guides_list = function(self, patches) {
+        ans <- lapply(patches, function(patch) patch$collect_guides())
+        # collapse the guides in the same guide position
+        ans <- lapply(.TLBR, function(guide_pos) {
+            unlist(lapply(ans, .subset2, guide_pos), FALSE, FALSE)
         })
         names(ans) <- .TLBR
         ans <- compact(ans)
+        # remove duplicated guides
         ans <- lapply(ans, collapse_guides)
         compact(ans)
     },
-    set_sizes = function(self, gt, design, guides, dims,
+    #' @importFrom grid is.unit unit
+    set_sizes = function(self, design, dims,
                          panel_widths, panel_heights,
-                         gt_list = .subset2(self, "gt_list")) {
+                         patches, gt = self$gt) {
         panel_widths <- rep(panel_widths, length.out = dims[2L])
         panel_heights <- rep(panel_heights, length.out = dims[1L])
         if (!is.unit(panel_widths)) panel_widths <- unit(panel_widths, "null")
@@ -176,9 +249,7 @@ AlignPatches <- ggplot2::ggproto(
         # the plot to be fixed must in only one square of the area
         need_fix <- .subset2(design, "l") == .subset2(design, "r") &
             .subset2(design, "t") == .subset2(design, "b") &
-            vapply(gt_list, function(gt) {
-                isTRUE(.subset2(gt, "respect"))
-            }, logical(1L))
+            vapply(patches, function(patch) patch$respect(), logical(1L))
 
         # here we respect the aspect ratio when necessary -----
         # if the width or height is NA, we will guess the panel widths or
@@ -187,7 +258,7 @@ AlignPatches <- ggplot2::ggproto(
         guess_heights <- which(is.na(as.numeric(panel_heights)))
         cols <- .subset2(design, "l")
         rows <- .subset2(design, "t")
-        gt_index <- order(
+        patch_index <- order(
             # we first set the widths for the fixed plot with heights set by
             # user
             cols %in% guess_widths & !rows %in% guess_heights,
@@ -200,34 +271,27 @@ AlignPatches <- ggplot2::ggproto(
             c(table(cols[need_fix]))[as.character(cols)],
             decreasing = TRUE
         )
-        respect_dims <- vector("list", length(gt_list))
+        respect_dims <- vector("list", length(patches))
 
         # For plot cannot be fixed, we always attach strips, axes and labels
         # into the panel area
-        for (i in gt_index) {
+        for (i in patch_index) {
             row <- .subset(rows, i)
             col <- .subset(cols, i)
             # we always build a standard gtable layout from the gtable
-            aligned_elements <- patch_align(
-                gt = .subset2(gt_list, i),
-                guides = guides,
+            panel_sizes <- .subset2(patches, i)$align_panel_sizes(
                 panel_width = panel_widths[col],
                 panel_height = panel_heights[row]
             )
-            gt_list[[i]] <- .subset2(aligned_elements, "gt")
-            panel_widths[col] <- .subset2(aligned_elements, "width")
-            panel_heights[row] <- .subset2(aligned_elements, "height")
-            if (.subset2(aligned_elements, "respect")) {
-                respect_dims[[i]] <- matrix(
-                    c(
-                        (row - 1L) * TABLE_ROWS + PANEL_ROW,
-                        (col - 1L) * TABLE_COLS + PANEL_COL
-                    ),
-                    nrow = 1L
-                )
+            panel_widths[col] <- .subset2(panel_sizes, "width")
+            panel_heights[row] <- .subset2(panel_sizes, "height")
+            if (.subset2(panel_sizes, "respect")) {
+                respect_dims[[i]] <- matrix(c(
+                    (row - 1L) * TABLE_ROWS + TOP_BORDER + 1L,
+                    (col - 1L) * TABLE_COLS + LEFT_BORDER + 1L
+                ), nrow = 1L)
             }
         }
-
         if (!is.null(respect_dims <- do.call(base::rbind, respect_dims))) {
             respect <- matrix(
                 0L, TABLE_ROWS * dims[1L],
@@ -247,82 +311,207 @@ AlignPatches <- ggplot2::ggproto(
 
         # setup sizes for non-panel rows/columns --------------
         sizes <- table_sizes(
-            lapply(gt_list, .subset2, "widths"),
-            lapply(gt_list, .subset2, "heights"),
+            lapply(patches, function(patch) patch$get_sizes()),
             design, dims[2L], dims[1L]
         )
         widths <- .subset2(sizes, "widths")
         heights <- .subset2(sizes, "heights")
 
-        # restore the panel sizes -----------------------------
-        width_ind <- seq(PANEL_COL, by = TABLE_COLS, length.out = dims[2L])
-        height_ind <- seq(PANEL_ROW, by = TABLE_ROWS, length.out = dims[1L])
+        # restore the panel sizes ----------------------------
+        width_ind <- seq(LEFT_BORDER + 1L,
+            by = TABLE_COLS, length.out = dims[2L]
+        )
+        height_ind <- seq(TOP_BORDER + 1L,
+            by = TABLE_ROWS, length.out = dims[1L]
+        )
         widths[width_ind] <- panel_widths
         heights[height_ind] <- panel_heights
 
         # setup the widths and heights -----------------------
         gt$widths <- widths
         gt$heights <- heights
-
-        # save the modified `gt_list` (fix_area) -------------
-        self$gt_list <- gt_list
         gt
     },
-    set_grobs = function(self, gt, design,
-                         gt_list = .subset2(self, "gt_list")) {
+
+    #' @importFrom gtable gtable_add_grob
+    #' @importFrom vctrs vec_slice
+    set_grobs = function(self, design, patches, gt = self$gt) {
         widths <- .subset2(gt, "widths")
         heights <- .subset2(gt, "heights")
-        gt$grobs <- unlist(lapply(seq_along(gt_list), function(i) {
-            # Only used for a `full_patch` object, the actual object should
-            # be the second grob in the `full_patch` object.
-            # we must align the borders for the underlying grob with
-            # the final `gtable` sizes
-            align_grobs(
-                gt = .subset2(gt_list, i),
-                widths = widths, heights = heights,
-                loc = design[i, , drop = FALSE]
+        for (i in seq_along(patches)) {
+            loc <- vec_slice(design, i)
+            # We must align the borders for the gtable grob with the
+            # final plot area sizes
+            l <- (.subset2(loc, "l") - 1L) * TABLE_COLS + 1L
+            l_widths <- widths[seq(l, l + LEFT_BORDER - 1L)]
+            r <- .subset2(loc, "r") * TABLE_COLS
+            r_widths <- widths[seq(r - RIGHT_BORDER + 1L, r)]
+            t <- (.subset2(loc, "t") - 1L) * TABLE_ROWS + 1L
+            t_heights <- heights[seq(t, t + TOP_BORDER - 1L)]
+            b <- .subset2(loc, "b") * TABLE_ROWS
+            b_heights <- heights[seq(b - BOTTOM_BORDER + 1L, b)]
+            patch <- .subset2(patches, i)
+
+            grobs <- patch$split_gt(patch$align_border(
+                t = t_heights, l = l_widths,
+                b = b_heights, r = r_widths
+            ))
+
+            # then we add the plot ---------------------------------
+            gt <- gtable_add_grob(gt,
+                list(.subset2(grobs, "plot")), t, l, b, r,
+                name = paste("plot", i, sep = "-"), z = 2L
             )
-        }), recursive = FALSE, use.names = FALSE)
+
+            # add background grob ----------------------------------
+            if (!is.null(bg <- .subset2(grobs, "bg"))) {
+                # we always add background in the beginning --------
+                gt <- gtable_add_grob(gt, bg, t, l, b, r,
+                    name = paste("plot", i, "background", sep = "-"),
+                    z = 1L
+                )
+            }
+
+            # remove the grob from the patch, we wont' use it anymore
+            patch$gt <- NULL
+        }
         gt
     },
-    set_layout = function(self, gt, design,
-                          gt_list = .subset2(self, "gt_list")) {
-        max_z <- vapply(gt_list, function(x) {
-            max(.subset2(.subset2(x, "layout"), "z"))
-        }, numeric(1L))
-        max_z <- c(0L, cumsum(max_z))
-        gt$layout <- do.call(
-            base::rbind,
-            lapply(seq_along(gt_list), function(i) {
-                loc <- design[i, , drop = FALSE]
-                lay <- .subset2(.subset2(gt_list, i), "layout")
-                lay$z <- lay$z + ifelse(lay$name == "background", 0L, max_z[i])
-                # we only expand the panel area, here is the magic from
-                # patchwork
-                lay$t <- lay$t + ifelse(
-                    lay$t <= PANEL_ROW,
-                    (loc$t - 1L) * TABLE_ROWS,
-                    (loc$b - 1L) * TABLE_ROWS
+    attach_guide_list = function(self, guide_list, theme = self$theme,
+                                 panel_pos = self$panel_pos,
+                                 gt = self$gt) {
+        if (length(guide_list)) {
+            # https://github.com/tidyverse/ggplot2/blob/57ba97fa04dadc6fd73db1904e39a09d57a4fcbe/R/guides-.R#L512
+            theme$legend.spacing <- theme$legend.spacing %||% unit(0.5, "lines")
+            theme$legend.spacing.y <- calc_element("legend.spacing.y", theme)
+            theme$legend.spacing.x <- calc_element("legend.spacing.x", theme)
+            theme$legend.box.spacing <- calc_element(
+                "legend.box.spacing", theme
+            ) %||% unit(0.2, "cm")
+            for (guide_pos in names(guide_list)) {
+                gt <- self$attach_guides(
+                    guide_pos = guide_pos,
+                    guides = .subset2(guide_list, guide_pos),
+                    theme = theme, panel_pos = panel_pos,
+                    name = sprintf("guide-box-collected-%s", guide_pos),
+                    clip = "off", z = 4L, gt = gt
                 )
-                lay$b <- lay$b + ifelse(
-                    lay$b < PANEL_ROW,
-                    (loc$t - 1L) * TABLE_ROWS,
-                    (loc$b - 1L) * TABLE_ROWS
-                )
-                lay$l <- lay$l + ifelse(
-                    lay$l <= PANEL_COL,
-                    (loc$l - 1L) * TABLE_COLS,
-                    (loc$r - 1L) * TABLE_COLS
-                )
-                lay$r <- lay$r + ifelse(
-                    lay$r < PANEL_COL,
-                    (loc$l - 1L) * TABLE_COLS,
-                    (loc$r - 1L) * TABLE_COLS
-                )
-                lay$name <- paste0(lay$name, "-plot-", i)
-                lay
-            })
+            }
+        }
+        gt
+    },
+    #' @importFrom gtable gtable_width gtable_height
+    #' @importFrom grid unit.c
+    #' @importFrom ggplot2 find_panel
+    attach_guides = function(self, guide_pos, guides, theme,
+                             panel_pos = find_panel(gt), ...,
+                             gt = self$gt) {
+        guides <- assemble_guides(guides, guide_pos, theme = theme)
+        spacing <- .subset2(theme, "legend.box.spacing")
+        legend_width <- gtable_width(guides)
+        legend_height <- gtable_height(guides)
+        if (guide_pos == "left") {
+            gt <- gtable_add_grob(
+                x = gt,
+                grobs = guides,
+                t = panel_pos$t,
+                l = panel_pos$l - 6L,
+                b = panel_pos$b,
+                ...
+            )
+            gt$widths[.subset2(panel_pos, "l") - 5:6] <- unit.c(
+                spacing, legend_width
+            )
+        } else if (guide_pos == "right") {
+            gt <- gtable_add_grob(
+                x = gt, grobs = guides,
+                t = panel_pos$t,
+                l = panel_pos$r + 6L,
+                b = panel_pos$b,
+                ...
+            )
+            gt$widths[.subset2(panel_pos, "r") + 5:6] <- unit.c(
+                spacing, legend_width
+            )
+        } else if (guide_pos == "bottom") {
+            gt <- gtable_add_grob(
+                x = gt,
+                grobs = guides,
+                t = panel_pos$b + 6L,
+                l = panel_pos$l,
+                r = panel_pos$r,
+                ...
+            )
+            gt$heights[.subset2(panel_pos, "b") + 5:6] <- unit.c(
+                spacing, legend_height
+            )
+        } else if (guide_pos == "top") {
+            gt <- gtable_add_grob(
+                x = gt,
+                grobs = guides,
+                t = panel_pos$t - 6L,
+                l = panel_pos$l,
+                r = panel_pos$r,
+                ...
+            )
+            gt$heights[.subset2(panel_pos, "t") - 5:6] <- unit.c(
+                spacing, legend_height
+            )
+        }
+        gt
+    },
+    #' @importFrom rlang is_empty
+    free_border = function(self, borders,
+                           gt = self$gt, patches = self$patches) {
+        self$recurse_lapply(
+            function(patch, grob, t, l, b, r) {
+                borders <- intersect(borders, c(t, l, b, r))
+                if (is_empty(borders)) return(grob) # styler: off
+                patch$free_border(borders = borders, gt = grob)
+            },
+            t = "top", l = "left", b = "bottom", r = "right",
+            gt = gt, patches = patches
         )
+    },
+    #' @importFrom rlang is_empty
+    free_lab = function(self, labs, gt = self$gt, patches = self$patches) {
+        self$recurse_lapply(
+            function(patch, grob, t, l, b, r) {
+                labs <- intersect(labs, c(t, l, b, r))
+                if (is_empty(labs)) return(grob) # styler: off
+                patch$free_lab(labs = labs, gt = grob)
+            },
+            t = "top", l = "left", b = "bottom", r = "right",
+            gt = gt, patches = patches
+        )
+    },
+    # we apply function in each plot gtable in `gt`.
+    #' @importFrom rlang is_empty
+    recurse_lapply = function(self, .fn, t, l, b, r,
+                              gt = self$gt, patches = self$patches) {
+        # if no plot provided, we'll do nothing
+        if (is_empty(patches)) return(gt) # styler: off
+        patch_index <- seq_along(patches)
+        grobs <- .subset2(gt, "grobs")
+        layout_index <- match(
+            paste0("plot-", patch_index),
+            .subset2(.subset2(gt, "layout"), "name")
+        )
+        # For each grob, we reuse the method from the patch to apply with the
+        # plot gtable. We always apply function to the plot border in the
+        # alignpatches
+        gt$grobs[layout_index] <- .mapply(function(layout_idx, patch_idx) {
+            patch <- .subset2(patches, patch_idx)
+            borders <- .subset2(patch, "borders")
+            .fn(
+                patch = patch,
+                grob = .subset2(grobs, layout_idx),
+                t = if (any(borders == "top")) t else NULL,
+                l = if (any(borders == "left")) l else NULL,
+                b = if (any(borders == "bottom")) b else NULL,
+                r = if (any(borders == "right")) r else NULL
+            )
+        }, list(layout_idx = layout_index, patch_idx = patch_index), NULL)
         gt
     }
 )
@@ -337,15 +526,17 @@ create_design <- function(ncol, nrow, byrow) {
 }
 
 #' @importFrom grid convertHeight convertWidth unit
-table_sizes <- function(widths, heights, design, ncol, nrow) {
+table_sizes <- function(sizes, design, ncol, nrow) {
     # `null` unit of the panel area will be converted into 0
     # we'll set the panel width and height afterward
-    widths <- lapply(widths, convertWidth, "mm", valueOnly = TRUE)
+    widths <- lapply(sizes, function(size) {
+        convertWidth(.subset2(size, "widths"), "mm", valueOnly = TRUE)
+    })
     widths <- vapply(seq_len(ncol * TABLE_COLS), function(i) {
         area_col <- (i - 1L) %/% TABLE_COLS + 1L
         col_loc <- i %% TABLE_COLS
         if (col_loc == 0L) col_loc <- TABLE_COLS
-        area_side <- if (col_loc <= PANEL_COL) "l" else "r"
+        area_side <- if (col_loc <= LEFT_BORDER + 1L) "l" else "r"
         idx <- .subset2(design, area_side) == area_col
         if (any(idx)) {
             max(
@@ -356,12 +547,14 @@ table_sizes <- function(widths, heights, design, ncol, nrow) {
             0L
         }
     }, numeric(1L))
-    heights <- lapply(heights, convertHeight, "mm", valueOnly = TRUE)
+    heights <- lapply(sizes, function(size) {
+        convertHeight(.subset2(size, "heights"), "mm", valueOnly = TRUE)
+    })
     heights <- vapply(seq_len(nrow * TABLE_ROWS), function(i) {
         area_row <- (i - 1L) %/% TABLE_ROWS + 1L
         row_loc <- i %% TABLE_ROWS
         if (row_loc == 0L) row_loc <- TABLE_ROWS
-        area_side <- if (row_loc <= PANEL_COL) "t" else "b"
+        area_side <- if (row_loc <= TOP_BORDER + 1L) "t" else "b"
         idx <- .subset2(design, area_side) == area_row
         if (any(idx)) {
             max(
@@ -373,162 +566,4 @@ table_sizes <- function(widths, heights, design, ncol, nrow) {
         }
     }, numeric(1L))
     list(widths = unit(widths, "mm"), heights = unit(heights, "mm"))
-}
-
-#' @return A list of grobs
-#' @noRd
-align_grobs <- function(gt, widths, heights, loc) {
-    UseMethod("align_grobs")
-}
-
-#' @export
-align_grobs.gtable <- function(gt, widths, heights, loc) {
-    .subset2(gt, "grobs")
-}
-
-#' @export
-align_grobs.full_patch <- function(gt, widths, heights, loc) {
-    grobs <- .subset2(gt, "grobs")
-    l <- (.subset2(loc, "l") - 1L) * TABLE_COLS
-    l_widths <- widths[seq(l + 1L, l + PANEL_COL - 1L)]
-    r <- (.subset2(loc, "r") - 1L) * TABLE_COLS
-    r_widths <- widths[seq(r + PANEL_COL + 1L, r + TABLE_COLS)]
-    t <- (.subset2(loc, "t") - 1L) * TABLE_ROWS
-    t_heights <- heights[seq(t + 1L, t + PANEL_ROW - 1L)]
-    b <- (.subset2(loc, "b") - 1L) * TABLE_ROWS
-    b_heights <- heights[seq(b + PANEL_ROW + 1L, b + TABLE_ROWS)]
-    # the second grob should be the original gtable of the
-    # `gtable_alignpatches` or `align_free_align` objects
-    # see function
-    # can be `gtable_free_align`, `gtable_alignpatches` or
-    # `gtable_free_borders` objects
-    grobs[[2L]] <- align_border_size(
-        .subset2(grobs, 2L),
-        t = t_heights,
-        l = l_widths,
-        b = b_heights,
-        r = r_widths
-    )
-    grobs
-}
-
-#' @param gt A `gtable` object fill in the full_patch
-#' @noRd
-align_border_size <- function(gt, t = NULL, l = NULL, b = NULL, r = NULL) {
-    UseMethod("align_border_size")
-}
-
-#' @export
-align_border_size.grob <- function(gt, t = NULL, l = NULL, b = NULL, r = NULL) {
-    gt
-}
-
-#' @export
-align_border_size.gtable_alignpatches <- function(gt, t = NULL, l = NULL,
-                                                  b = NULL, r = NULL) {
-    if (is.null(t) && is.null(l) && is.null(b) && is.null(r)) {
-        return(gt)
-    }
-    n_row <- nrow(gt)
-    n_col <- ncol(gt)
-    if (!is.null(t)) gt$heights[seq_along(t)] <- t
-    if (!is.null(l)) gt$widths[seq_along(l)] <- l
-    if (!is.null(b)) gt$heights[seq(n_row - length(b) + 1L, n_row)] <- b
-    if (!is.null(r)) gt$widths[seq(n_col - length(r) + 1L, n_col)] <- r
-
-    grobs <- .subset2(gt, "grobs")
-    layout <- .subset2(gt, "layout")
-    gt$grobs <- lapply(seq_along(grobs), function(i) {
-        # For each nested plot, we reuse this function to set the border sizes
-        # we only set the border sizes for plot in the border
-        align_border_size(
-            .subset2(grobs, i),
-            t = if (.subset2(layout, "t")[i] == 1L) t else NULL,
-            l = if (.subset2(layout, "l")[i] == 1L) l else NULL,
-            b = if (.subset2(layout, "b")[i] == n_row) b else NULL,
-            r = if (.subset2(layout, "r")[i] == n_col) r else NULL
-        )
-    })
-    gt
-}
-
-#' @importFrom gtable gtable_width gtable_height
-#' @importFrom grid viewport
-#' @export
-align_border_size.gtable_free_just <- function(gt, t = NULL, l = NULL,
-                                               b = NULL, r = NULL) {
-    ans <- NextMethod() # call `gtable_alignpatches` method
-
-    # we allow the justifactions by top, left, bottom, and right
-    if (!is.null(just <- attr(ans, "just"))) {
-        # if all plots have absolute sizes or we have set the viewport width or
-        # height, we will make justification
-        horizontal_just <- attr(ans, "horizontal_just")
-        vertical_just <- attr(ans, "vertical_just")
-        x <- y <- NULL
-        if (!is.null(vp_width <- attr(ans, "vp_width")) || horizontal_just) {
-            if (horizontal_just) {
-                # all is absolute size, we always follow this gtable width
-                # if we use the `vp_width`, and it is smaller than the actual
-                # gtable width, we'll fail to make the justification
-                vp_width <- gtable_width(ans)
-            } else {
-                # if some unit are null, we can just use the maximal size,
-                # since the null unit will fill the remaining blank space
-                vp_width <- max(vp_width, gtable_width(ans))
-            }
-            if (any(just == "left")) {
-                x <- 0L
-            } else if (any(just == "right")) {
-                x <- 1L
-            }
-        }
-        if (!is.null(vp_height <- attr(ans, "vp_height")) || vertical_just) {
-            if (vertical_just) {
-                vp_height <- gtable_height(ans)
-            } else {
-                vp_height <- max(vp_height, gtable_height(ans))
-            }
-            if (any(just == "top")) {
-                y <- 1L
-            } else if (any(just == "bottom")) {
-                y <- 0L
-            }
-        }
-        if (!is.null(x) || !is.null(y)) {
-            ans$vp <- viewport(
-                x = x %||% 0.5, y = y %||% 0.5,
-                just = c(x %||% 0.5, y %||% 0.5),
-                width = if (is.null(x)) 1L else vp_width,
-                height = if (is.null(y)) 1L else vp_height,
-            )
-        }
-    }
-    ans
-}
-
-#' @export
-align_border_size.gtable_free_align <- function(gt, t = NULL, l = NULL,
-                                                b = NULL, r = NULL) {
-    free_axes <- attr(gt, "free_axes")
-    for (axis in split_position(free_axes)) {
-        assign(x = axis, value = NULL, envir = environment())
-    }
-    # can be `gtable_ggplot` or `gtable_alignpatches`
-    ans <- NextMethod()
-    attr(ans, "free_axes") <- free_axes
-    if (!inherits(ans, "gtable_free_align")) {
-        ans <- add_class(ans, "gtable_free_align")
-    }
-    ans
-}
-
-#' @export
-align_border_size.gtable_ggplot <- function(gt, t = NULL, l = NULL,
-                                            b = NULL, r = NULL) {
-    if (!is.null(t)) gt$heights[seq_along(t)] <- t
-    if (!is.null(l)) gt$widths[seq_along(l)] <- l
-    if (!is.null(b)) gt$heights[seq(nrow(gt) - length(b) + 1L, nrow(gt))] <- b
-    if (!is.null(r)) gt$widths[seq(ncol(gt) - length(r) + 1L, ncol(gt))] <- r
-    gt
 }

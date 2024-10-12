@@ -2,41 +2,33 @@
 # add annotation into annotation list
 #' Put plots horizontally or vertically
 #'
-#' `ggstack` is an alias of `layout_stack`.
+#' `ggstack` is an alias of `stack_layout`.
 #'
 #' @param data A numeric or character vector, a data frame, or a matrix.
 #' @param direction A string of `"horizontal"` or `"vertical"`, indicates the
 #' direction of the stack layout.
-#' @param ... Not used currently.
-#' @inheritParams layout_heatmap
+#' @param sizes A numeric or [unit][grid::unit] object of length `3` indicates
+#' the relative widths (`direction = "horizontal"`) / heights (`direction =
+#' "vertical"`).
+#' @inheritParams align_plots
+#' @inheritParams rlang::args_dots_empty
 #' @return A `StackLayout` object.
 #' @examples
 #' ggstack(matrix(rnorm(100L), nrow = 10L)) + align_dendro()
 #' @export
-layout_stack <- function(data, direction = NULL, ...,
-                         environment = parent.frame()) {
+stack_layout <- function(data, direction = NULL, sizes = NA,
+                         ..., guides = waiver(), theme = NULL) {
+    rlang::check_dots_empty()
     if (missing(data)) {
-        .layout_stack(
+        .stack_layout(
             data = NULL, nobs = NULL,
-            direction = direction,
-            environment = environment,
+            direction = direction, sizes = sizes,
+            guides = guides, theme = theme,
             call = current_call()
         )
     } else {
-        UseMethod("layout_stack")
+        UseMethod("stack_layout")
     }
-}
-
-#' @export
-print.StackLayout <- function(x, ...) {
-    if (!is.null(p <- alignpatch(x))) print(p, ...)
-    invisible(x)
-}
-
-#' @importFrom grid grid.draw
-#' @exportS3Method
-grid.draw.StackLayout <- function(x, recording = TRUE) {
-    grid.draw(alignpatch(x), recording = recording)
 }
 
 # Used to place multiple objects in one axis
@@ -49,74 +41,84 @@ methods::setClass(
     list(
         data = "ANY",
         plots = "list",
-        params = "list",
         direction = "character",
+        position = "ANY", # used by heatmap annotation, annotation position
+        size = "ANY", # used by heatmap annotation, total annotation size
+        sizes = "ANY", # used by stack layout
         panel = "ANY",
         index = "ANY",
         nobs = "ANY"
     ),
-    prototype = list(panel = NULL, index = NULL, nobs = NULL)
+    prototype = list(
+        plots = list(), position = NULL,
+        size = unit(NA, "null"),
+        panel = NULL, index = NULL, nobs = NULL
+    )
 )
 
 #' @export
-#' @rdname layout_stack
-ggstack <- layout_stack
+#' @rdname stack_layout
+ggstack <- stack_layout
 
 #' @export
-layout_stack.matrix <- function(data, ..., environment = parent.frame()) {
-    .layout_stack(
+stack_layout.matrix <- function(data, ...) {
+    .stack_layout(
         data = data, nobs = nrow(data), ...,
-        environment = environment,
         call = current_call()
     )
 }
 
 #' @export
-layout_stack.data.frame <- layout_stack.matrix
+stack_layout.data.frame <- stack_layout.matrix
 
 #' @export
-layout_stack.numeric <- function(data, ..., environment = parent.frame()) {
-    .layout_stack(
+stack_layout.numeric <- function(data, ...) {
+    .stack_layout(
         data = as.matrix(data), nobs = length(data), ...,
-        environment = environment,
         call = current_call()
     )
 }
 
 #' @export
-layout_stack.character <- layout_stack.numeric
+stack_layout.character <- stack_layout.numeric
 
 #' @export
-layout_stack.NULL <- function(data, ..., environment = parent.frame()) {
-    .layout_stack(
-        data = data, nobs = NULL, ...,
-        environment = environment,
-        call = current_call()
-    )
+stack_layout.NULL <- function(data, ...) {
+    .stack_layout(data = data, nobs = NULL, ..., call = current_call())
 }
 
+#' @importFrom rlang caller_call
+#' @importFrom ggplot2 waiver
 #' @importFrom grid unit
-.layout_stack <- function(data, nobs, direction = NULL,
-                          environment = parent.frame(),
-                          call = caller_call()) {
+.stack_layout <- function(data, direction = NULL, sizes = NA,
+                          guides = waiver(), theme = NULL,
+                          nobs, call = caller_call()) {
     direction <- match.arg(direction, c("horizontal", "vertical"))
+    sizes <- check_stack_sizes(sizes)
+    if (!is.null(guides) && !is.waive(guides)) {
+        assert_position(guides, call = call)
+    }
     methods::new("StackLayout",
-        data = data, direction = direction,
+        data = data,
+        direction = direction,
+        # @param sizes the relative size of the vertical direction with this
+        # stack, which won't be used by heatmap annotation.
+        sizes = sizes,
         params = list(
-            sizes = unit(rep_len(NA, 3L), "null"),
-            guides = waiver(), plot_data = waiver(),
-            free_labs = waiver(), free_spaces = waiver()
+            guides = guides,
+            free_guides = waiver(), # only used by heatmap annotation
+            plot_data = waiver(),
+            free_labs = waiver(),
+            free_spaces = waiver(),
+            theme = waiver()
         ),
-        nobs = nobs,
-        # following parameters are used by ggplot methods
-        # like `ggsave` and `ggplot_build`
-        theme = default_theme(),
-        plot_env = environment
+        theme = theme,
+        nobs = nobs
     )
 }
 
 #' @export
-layout_stack.default <- function(data, ..., environment = parent.frame()) {
+stack_layout.default <- function(data, ...) {
     cli::cli_abort(c(
         paste(
             "{.arg data} must be a numeric or character vector,",
@@ -131,6 +133,6 @@ layout_stack.default <- function(data, ..., environment = parent.frame()) {
 #' @param x An object to test
 #' @return A boolean value
 #' @examples
-#' is.ggstack(ggstack(1:10))
+#' is_ggstack(ggstack(1:10))
 #' @export
-is.ggstack <- function(x) methods::is(x, "StackLayout")
+is_ggstack <- function(x) methods::is(x, "StackLayout")

@@ -6,12 +6,15 @@
 #' `"minkowski"`.  Correlation coefficient can be also used, including
 #' `"pearson"`, `"spearman"` or `"kendall"`. In this way, `1 - cor` will be used
 #' as the distance. In addition, you can also provide a [dist][stats::dist]
-#' object directly or a function return a [dist][stats::dist] object.
+#' object directly or a function return a [dist][stats::dist] object. Use
+#' `NULL`, if you don't want to calculate the distance.
 #' @param method A string of the agglomeration method to be used. This should be
 #' (an unambiguous abbreviation of) one of `"ward.D"`, `"ward.D2"`, `"single"`,
 #' `"complete"`, `"average"` (= UPGMA), `"mcquitty"` (= WPGMA), `"median"` (=
-#' WPGMC) or `"centroid"` (= UPGMC). you can also provide a function which
-#' returns a [hclust][stats::hclust] object.
+#' WPGMC) or `"centroid"` (= UPGMC). You can also provide a function which
+#' accepts the distance and returns a [hclust][stats::hclust] object.
+#' Alternative, you can supply an object which can be coerced to
+#' [hclust][stats::hclust].
 #' @param use_missing An optional character string giving a method for computing
 #' covariances in the presence of missing values. This must be (an abbreviation
 #' of) one of the strings `"everything"`, `"all.obs"`, `"complete.obs"`,
@@ -24,20 +27,55 @@
 #' @examples
 #' hclust2(dist(USArrests), method = "ward.D")
 #' @return A [hclust][stats::hclust] object.
-#' @importFrom rlang is_string
+#' @importFrom rlang is_string try_fetch
 #' @export
-hclust2 <- function(matrix,
-                    distance = "euclidean",
-                    method = "complete",
+hclust2 <- function(matrix, distance = "euclidean", method = "complete",
                     use_missing = "pairwise.complete.obs") {
+    call <- current_call() # used for message
+    method <- allow_lambda(method)
+    if (!is_string(method) && !is.function(method)) {
+        ans <- try_fetch(
+            stats::as.hclust(method),
+            error = function(cnd) {
+                cli::cli_abort(paste(
+                    "{.arg method} can only be a {.cls string},",
+                    "{.cls function} or an object which can be coerced to",
+                    "{.cls hclust}."
+                ), call = call)
+            }
+        )
+        return(ans)
+    }
+    if (is.null(distance)) {
+        d <- matrix
+    } else {
+        d <- make_dist(matrix, distance, use_missing)
+    }
+    if (is_string(method)) {
+        ans <- stats::hclust(d, method = method)
+    } else if (is.function(method)) {
+        ans <- method(d)
+        ans <- try_fetch(
+            stats::as.hclust(ans),
+            error = function(cnd) {
+                cli::cli_abort(paste(
+                    "{.arg method} must return an object which",
+                    "can be coerced to {.cls hclust}"
+                ), call = call)
+            }
+        )
+    }
+    ans
+}
+
+make_dist <- function(matrix, distance, use_missing,
+                      arg = caller_arg(distance), call = caller_call()) {
     distance <- allow_lambda(distance)
     if (is_string(distance)) {
-        distance <- match.arg(
-            distance, c(
-                "euclidean", "maximum", "manhattan", "canberra",
-                "binary", "minkowski", "pearson", "spearman", "kendall"
-            )
-        )
+        distance <- rlang::arg_match0(distance, c(
+            "euclidean", "maximum", "manhattan", "canberra",
+            "binary", "minkowski", "pearson", "spearman", "kendall"
+        ), arg_nm = arg, error_call = call)
         d <- switch(distance,
             euclidean = ,
             maximum = ,
@@ -50,36 +88,30 @@ hclust2 <- function(matrix,
             kendall = stats::as.dist(
                 1 - stats::cor(t(matrix), use = use_missing, method = distance)
             ),
-            cli::cli_abort("Unsupported {.arg distance} method specified")
+            cli::cli_abort("Unsupported {.arg {arg}} method specified",
+                call = call
+            )
         )
     } else if (is.function(distance)) {
         d <- distance(matrix)
         if (inherits(distance, "dist")) {
-            cli::cli_abort("{.arg distance} must return a {.cls dist} object")
+            cli::cli_abort(
+                "{.arg {arg}} must return a {.cls dist} object",
+                call = call
+            )
         }
     } else if (inherits(distance, "dist")) {
         d <- distance
     } else {
-        cli::cli_abort(paste(
-            "{.arg distance} can only be a {.cls string}, {.cls dist}",
-            "object, or a {.cls function} return {.cls dist}"
-        ))
+        cli::cli_abort(
+            paste(
+                "{.arg {arg}} can only be a {.cls string}, {.cls dist}",
+                "object, or a {.cls function} return {.cls dist}"
+            ),
+            call = call
+        )
     }
-    method <- allow_lambda(method)
-    if (is_string(method)) {
-        ans <- stats::hclust(d, method = method)
-    } else if (is.function(method)) {
-        ans <- method(d)
-        if (inherits(ans, "hclust")) {
-            cli::cli_abort("{.arg method} must return a {.cls hclust} object")
-        }
-    } else {
-        cli::cli_abort(paste(
-            "{.arg method} can only be a {.cls string},",
-            "or a {.cls function} return {.cls hclust}"
-        ))
-    }
-    ans
+    d
 }
 
 #' Dengrogram x and y coordinates
@@ -99,6 +131,8 @@ hclust2 <- function(matrix,
 #' of the number of observations in `tree`.
 #' @param leaf_braches Branches of the leaf node. Must be the same length of the
 #' number of observations in `tree`. Usually come from [cutree][stats::cutree].
+#' @param reorder_branches A single boolean value, indicates whether reorder the
+#' provided leaf_braches based on the actual index.
 #' @param branch_gap A single numeric value indicates the gap between different
 #' branches.
 #' @param root A length one string or numeric indicates the root branch.
@@ -117,10 +151,9 @@ hclust2 <- function(matrix,
 #'              using [facet_grid][ggplot2::facet_grid], this column will show
 #'              which panel current node or edge is from. Note: some nodes may
 #'              fall outside panel (between two panels), so there are possible
-#'              `NA` values in this column. We also provide `ggpanel` column,
-#'              which always give the right branch for usage of the ggplot
-#'              facet.
-#'   - `ggpanel`: See `panel`, this is what we often used.
+#'              `NA` values in this column.
+#'   - `.panel`: Similar with `panel` column, but always give the correct
+#'              branch for usage of the ggplot facet.
 #'   - `panel1` and `panel2`: The panel1 and panel2 variables have the same
 #'     functionality as `panel`, but they are specifically for the `edge` data
 #'     and correspond to both nodes of each edge.
@@ -128,6 +161,8 @@ hclust2 <- function(matrix,
 #' @examples
 #' dendrogram_data(hclust(dist(USArrests), "ave"))
 #' @importFrom grid is.unit
+#' @importFrom vctrs vec_rbind
+#' @importFrom stats order.dendrogram
 #' @export
 dendrogram_data <- function(tree,
                             priority = "right",
@@ -135,10 +170,12 @@ dendrogram_data <- function(tree,
                             type = "rectangle",
                             leaf_pos = NULL,
                             leaf_braches = NULL,
+                            reorder_branches = TRUE,
                             branch_gap = NULL,
                             root = NULL) {
     dend <- check_dendrogram(tree)
     assert_bool(center)
+    assert_bool(reorder_branches)
     type <- match.arg(type, c("rectangle", "triangle"))
     priority <- match.arg(priority, c("left", "right"))
     N <- stats::nobs(dend)
@@ -167,7 +204,14 @@ dendrogram_data <- function(tree,
         root <- root %||% "root"
     } else if (is.numeric(leaf_braches)) {
         root <- root %||% (min(leaf_braches) - 1L)
+    } else {
+        cli::cli_abort("{.arg leaf_braches} must be a character or numeric")
     }
+
+    if (!is.null(leaf_braches) && reorder_branches) {
+        leaf_braches <- .subset(leaf_braches, order.dendrogram(dend))
+    }
+
     # branch_gap must be a numeric value
     # and the length must be equal to `length(unique(leaf_braches)) - 1L`
     if (is.numeric(branch_gap)) {
@@ -200,12 +244,12 @@ dendrogram_data <- function(tree,
         if (stats::is.leaf(dend)) { # base version
             index <- as.integer(dend) # the column index of the original data
             y <- attr(dend, "height") %||% 0
-            label <- attr(dend, "label") %||% NA_character_
+            label <- attr(dend, "label") %||% NA
             i <<- i + 1L
             if (is.null(leaf_braches)) {
                 branch <- root
             } else {
-                branch <- .subset(leaf_braches, index)
+                branch <- .subset(leaf_braches, i)
             }
 
             x <- .subset(leaf_pos, i) + total_gap
@@ -222,7 +266,7 @@ dendrogram_data <- function(tree,
                 index = index, label = label,
                 x = x, y = y, branch = branch,
                 leaf = TRUE, panel = branch,
-                ggpanel = branch
+                .panel = branch
             )
             list(
                 # current node
@@ -240,8 +284,8 @@ dendrogram_data <- function(tree,
             data <- transpose(lapply(dend, .dendrogram_data, from_root = FALSE))
 
             # node should be the direct children
-            node <- do.call(rbind, .subset2(data, "node"))
-            edge <- do.call(rbind, .subset2(data, "edge"))
+            node <- do.call(vec_rbind, .subset2(data, "node"))
+            edge <- do.call(vec_rbind, .subset2(data, "edge"))
 
             # all coordinate for direct children nodes -------------
             # following should be length 2
@@ -290,7 +334,9 @@ dendrogram_data <- function(tree,
                     .subset2(leaves, "x"),
                     .subset2(leaves, "panel")
                 )
-                ranges <- ranges[order(vapply(ranges, min, numeric(1L)))]
+                ranges <- ranges[
+                    order(vapply(ranges, min, numeric(1L), USE.NAMES = FALSE))
+                ]
                 full_panel <- names(ranges)
                 panel <- NA
                 for (i in seq_along(ranges)) {
@@ -315,10 +361,10 @@ dendrogram_data <- function(tree,
 
             # there is no node data in dendrogram root
             if (!from_root) {
-                node <- rbind(node, data_frame0(
-                    index = NA_integer_, label = NA_character_,
+                node <- vec_rbind(node, data_frame0(
+                    index = NA, label = NA,
                     x = x, y = y, branch = branch, leaf = FALSE,
-                    panel = panel, ggpanel = ggpanel
+                    panel = panel, .panel = ggpanel
                 ))
             }
 
@@ -333,7 +379,7 @@ dendrogram_data <- function(tree,
                     branch = direct_leaves_branch,
                     panel1 = direct_leaves_panel,
                     panel2 = direct_leaves_panel,
-                    ggpanel = direct_leaves_ggpanel
+                    .panel = direct_leaves_ggpanel
                 )
                 # 2 horizontal lines
                 # we double the left line and the right line when a node is not
@@ -388,7 +434,7 @@ dendrogram_data <- function(tree,
                             panel,
                             .subset(direct_leaves_panel, i)
                         ),
-                        ggpanel = c(
+                        .panel = c(
                             .subset(direct_leaves_ggpanel, 3L - i),
                             ggpanel,
                             .subset(direct_leaves_ggpanel, i),
@@ -405,10 +451,10 @@ dendrogram_data <- function(tree,
                         branch = direct_leaves_branch,
                         panel1 = rep_len(panel, 2L),
                         panel2 = direct_leaves_panel,
-                        ggpanel = rep_len(ggpanel, 2L)
+                        .panel = rep_len(ggpanel, 2L)
                     )
                 }
-                added_edge <- rbind(vertical_lines, horizontal_lines)
+                added_edge <- vec_rbind(vertical_lines, horizontal_lines)
             } else {
                 added_edge <- data_frame0(
                     x = rep_len(x, 2L),
@@ -418,13 +464,13 @@ dendrogram_data <- function(tree,
                     branch = direct_leaves_branch,
                     panel1 = rep_len(panel, 2L),
                     panel2 = direct_leaves_panel,
-                    ggpanel = rep_len(ggpanel, 2L)
+                    .panel = rep_len(ggpanel, 2L)
                 )
             }
             if (is.null(edge)) {
                 edge <- added_edge
             } else {
-                edge <- rbind(edge, added_edge)
+                edge <- vec_rbind(edge, added_edge)
             }
             list(
                 node = node, edge = edge,
@@ -444,17 +490,59 @@ dendrogram_data <- function(tree,
     branch_levels <- c(branch_levels, root)
     node$panel <- factor(.subset2(node, "panel"), panel_levels)
     node$branch <- factor(.subset2(node, "branch"), branch_levels)
-    node$ggpanel <- factor(.subset2(node, "ggpanel"), panel_levels)
-    rownames(node) <- NULL
-
-    edge$ggpanel <- factor(.subset2(edge, "ggpanel"), panel_levels)
-    edge$panel1 <- factor(.subset2(edge, "panel1"), panel_levels)
-    edge$panel2 <- factor(.subset2(edge, "panel2"), panel_levels)
-    edge$branch <- factor(.subset2(edge, "branch"), branch_levels)
-    rownames(node) <- NULL
-
-    # we rename `ggpanel` into the finale name `.panel`
+    node$.panel <- factor(.subset2(node, ".panel"), panel_levels)
+    if (!is.null(edge)) {
+        edge$panel1 <- factor(.subset2(edge, "panel1"), panel_levels)
+        edge$panel2 <- factor(.subset2(edge, "panel2"), panel_levels)
+        edge$branch <- factor(.subset2(edge, "branch"), branch_levels)
+        edge$.panel <- factor(.subset2(edge, ".panel"), panel_levels)
+    }
     list(node = node, edge = edge)
+}
+
+# this function won't set the right `midpoint`, but `dendrogram_data` function
+# won't use it, so, it has no hurt to use.
+merge_dendrogram <- function(parent, children) {
+    if (is.null(parent)) { # if no parent, call the merge function from `stats`
+        return(Reduce(function(x, y) {
+            merge(x, y, adjust = "none")
+        }, children))
+    }
+    children_heights <- vapply(
+        children, attr, numeric(1L), "height",
+        USE.NAMES = FALSE
+    )
+    parent_branch_heights <- tree_branch_heights(parent)
+    cutoff_height <- max(children_heights) + min(parent_branch_heights) * 0.5
+    .merge_dendrogram <- function(dend) {
+        if (stats::is.leaf(dend)) { # base version, leaf should be the index
+            .subset2(children, dend)
+        } else { # for a branch, we should update the members, height
+            attrs <- attributes(dend)
+            # we recursively run for each node of current branch
+            dend <- lapply(dend, .merge_dendrogram)
+            heights <- vapply(dend, attr, numeric(1L), "height",
+                USE.NAMES = FALSE
+            )
+            n_members <- vapply(dend, attr, integer(1L), "members",
+                USE.NAMES = FALSE
+            )
+            # we update height and members
+            attrs$height <- .subset2(attrs, "height") + max(heights)
+            attrs$members <- sum(n_members)
+            attributes(dend) <- attrs
+            dend
+        }
+    }
+    ans <- .merge_dendrogram(parent)
+    attr(ans, "cutoff_height") <- cutoff_height
+    ans
+}
+
+#' @importFrom stats reorder
+reorder_dendrogram <- function(dend, wts) {
+    if (inherits(dend, "hclust")) dend <- stats::as.dendrogram(dend)
+    reorder(x = dend, wts = wts, agglo.FUN = mean)
 }
 
 cutree_k_to_h <- function(tree, k) {
@@ -468,33 +556,6 @@ cutree_k_to_h <- function(tree, k) {
         )
     }
     mean(tree$height[c(n - k, n - k + 1L)])
-}
-
-# this function won't set the right `midpoint`, but `dendrogram_data` function
-# won't use it, so, it has no hurt to use.
-merge_dendrogram <- function(parent, children) {
-    children_heights <- vapply(children, attr, numeric(1L), "height")
-    parent_branch_heights <- tree_branch_heights(parent)
-    cutoff_height <- max(children_heights) + min(parent_branch_heights) * 0.5
-    .merge_dendrogram <- function(dend) {
-        if (stats::is.leaf(dend)) { # base version
-            .subset2(children, dend)
-        } else { # for a branch, we should update the members, height
-            attrs <- attributes(dend)
-            # we recursively run for each node of current branch
-            dend <- lapply(dend, .merge_dendrogram)
-            heights <- vapply(dend, attr, numeric(1L), "height")
-            n_members <- vapply(dend, attr, integer(1L), "members")
-            # we update height and members, in addition, midpoint
-            attrs$height <- .subset2(attrs, "height") + max(heights)
-            attrs$members <- sum(n_members)
-            attributes(dend) <- attrs
-            dend
-        }
-    }
-    ans <- .merge_dendrogram(parent)
-    attr(ans, "cutoff_height") <- cutoff_height
-    ans
 }
 
 tree_branch_heights <- function(dend) {
@@ -522,11 +583,3 @@ check_dendrogram <- function(tree, arg = caller_arg(tree),
         ), call = call)
     }
 }
-
-order2 <- function(x) UseMethod("order2")
-
-#' @export
-order2.hclust <- function(x) x$order
-
-#' @export
-order2.dendrogram <- function(x) stats::order.dendrogram(x)

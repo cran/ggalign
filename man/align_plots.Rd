@@ -12,10 +12,7 @@ align_plots(
   widths = NA,
   heights = NA,
   design = NULL,
-  guides = NULL,
-  title = NULL,
-  subtitle = NULL,
-  caption = NULL,
+  guides = waiver(),
   theme = NULL
 )
 }
@@ -24,7 +21,7 @@ align_plots(
 ggplot object. Use \code{NULL} to indicate an empty spacer.}
 
 \item{ncol, nrow}{The dimensions of the grid to create - if both are \code{NULL} it
-will use the same logic as \link[ggplot2:facet_wrap]{facet_wrap()} to set the
+will use the same logic as \code{\link[ggplot2:facet_wrap]{facet_wrap()}} to set the
 dimensions}
 
 \item{byrow}{If \code{FALSE} the plots will be filled in in column-major order.}
@@ -39,21 +36,14 @@ to match the aspect ratio of the content.}
 either be specified as a text string or by concatenating calls to
 \code{\link[=area]{area()}} together.}
 
-\item{guides}{Which guide should be collected? A string containing one or
-more of \code{"t"},\code{"l"},\code{"b"},and \code{"r"}.}
+\item{guides}{A string containing one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"} indicates which side of guide legends should be collected. If \code{NULL}, no guide legends will be collected. If \code{\link[ggplot2:waiver]{waiver()}}, it will inherit from the parent layout}
 
-\item{title}{The text for the title.}
-
-\item{subtitle}{The text for the subtitle for the plot which will be
-displayed below the title.}
-
-\item{caption}{The text for the caption which will be displayed in the
-bottom-right of the plot by default.}
-
-\item{theme}{A \link[ggplot2:theme]{theme()} object to rendering the guides, title, subtitle, caption, margins and background.}
+\item{theme}{A \code{\link[ggplot2:theme]{theme()}} used to render the \code{guides},
+\code{title}, \code{subtitle}, \code{caption}, \code{margins}, \code{patch.title}, \code{panel.border}, and
+\code{background}. If \code{NULL} (default), will inherit from the parent \code{layout}.}
 }
 \value{
-A \code{alignpatches} object.
+An \code{alignpatches} object.
 }
 \description{
 Arrange multiple plots into a grid
@@ -85,4 +75,11 @@ align_plots(B = p1, A = p2, design = design)
 
 # Compare to not using named plot arguments
 align_plots(p1, p2, design = design)
+}
+\seealso{
+\itemize{
+\item \code{\link[=layout_design]{layout_design()}}
+\item \code{\link[=layout_title]{layout_title()}}
+\item \code{\link[=layout_annotation]{layout_annotation()}}
+}
 }

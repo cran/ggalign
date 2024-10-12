@@ -10,6 +10,9 @@
 #' - `free_lab`: If we want to compose plots without alignment of the axis
 #' title, we can wrap the plot with `free_lab`.
 #' - `free_space`: Removing the ggplot element sizes when aligning.
+#' - `free_vp`: Customize the [viewport][grid::viewport] when aligning.
+#' - `free_guide`: If we want to override the behaviour of the overall guides
+#'   behaviour, we can wrap the plot with `free_guide`.
 #'
 #' @param plot A [ggplot][ggplot2::ggplot] or [alignpatches][align_plots]
 #' object.
@@ -18,7 +21,7 @@
 #' @return
 #' - `free_align`: A modified version of `plot` with a `free_align` class.
 #' @examples
-#' # directly copied from patchwork
+#' # directly copied from `patchwork`
 #' # Sometimes you have a plot that defies good composition alginment, e.g. due
 #' # to long axis labels
 #' p1 <- ggplot(mtcars) +
@@ -38,21 +41,35 @@
 #'
 #' align_plots(p1, p2, ncol = 1L)
 #'
-#' # We can fix this be using free (here, with the default "panel" type)
+#' # We can fix this be using `free_align`
 #' align_plots(free_align(p1), p2, ncol = 1L)
 #'
 #' # If we still want the panels to be aligned to the right, we can choose to
 #' # free only the left side
 #' align_plots(free_align(p1, axes = "l"), p2, ncol = 1L)
 #'
-#' # We could use "label" to fix the layout in a different way
+#' # We could use `free_lab` to fix the layout in a different way
 #' align_plots(p1, free_lab(p2), ncol = 1L)
 #'
-#' # Another issue is that long labels are not using already available free
-#' # space.
+#' # `free_border` is similar with `free_lab`, they have a distinction in terms
+#' # of placement on either the top or bottom side of the panel. Specifically,
+#' # the top side contains the `title` and `subtitle`, while the bottom side
+#' # contains the `caption`. free_lab() does not attach these elements in the
+#' # panel area.
+#' p3 <- ggplot(mtcars) +
+#'     geom_point(aes(hp, wt, colour = mpg)) +
+#'     ggtitle("Plot 3")
+#' p_axis_top <- ggplot(mtcars) +
+#'     geom_point(aes(mpg, disp)) +
+#'     ggtitle("Plot axis in top") +
+#'     scale_x_continuous(position = "top")
+#' align_plots(p_axis_top, free_lab(p3))
+#' align_plots(p_axis_top, free_border(p3))
+#'
+#' # Another issue is that long labels can occupy much spaces
 #' align_plots(NULL, p1, p2, p2)
 #'
-#' # This can be fixed with the "space" type
+#' # This can be fixed with `free_space`
 #' align_plots(NULL, free_space(p1, "l"), p2, p2)
 #'
 #' @export
@@ -100,27 +117,24 @@ free_align.default <- function(plot, axes = "tlbr") {
     cli::cli_abort("Cannot use with {.obj_type_friendly {plot}}")
 }
 
+#' @importFrom ggplot2 ggproto ggproto_parent
 #' @export
-free_align.wrapped_plot <- free_align.default
-
-#' @export
-patch_gtable.free_align <- function(patch, guides) {
-    class(patch) <- setdiff(class(patch), "free_align")
-
-    # can be `gtable_ggplot` or `gtable_alignpatches`
-    gt <- NextMethod()
-    attr(gt, "free_axes") <- attr(patch, "free_axes")
-    add_class(gt, "gtable_free_align")
-}
-
-#' @export
-patch_align.gtable_free_align <- function(gt, guides,
-                                          panel_width, panel_height) {
-    list(
-        gt = make_full_patch(gt,
-            clip = "off", name = "free_align-table",
-            borders = setdiff(.TLBR, setup_position(attr(gt, "free_axes")))
-        ),
-        width = panel_width, height = panel_height, respect = FALSE
+alignpatch.free_align <- function(x) {
+    Parent <- NextMethod()
+    ggproto(
+        "PatchFreeAlign", Parent,
+        free_axes = split_position(attr(x, "free_axes")),
+        get_sizes = function(self, free = self$free_axes, gt = self$gt) {
+            ggproto_parent(Parent, self)$get_sizes(free, gt = gt)
+        },
+        align_border = function(self, t = NULL, l = NULL, b = NULL, r = NULL,
+                                gt = self$gt) {
+            for (axis in self$free_axes) {
+                assign(x = axis, value = NULL, envir = environment())
+            }
+            ggproto_parent(Parent, self)$align_border(
+                t = t, l = l, b = b, r = r, gt = gt
+            )
+        }
     )
 }

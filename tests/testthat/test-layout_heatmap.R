@@ -9,8 +9,6 @@ testthat::test_that("`ggheatmap` works well", {
 
     # heatmap with no data
     p <- ggheatmap()
-    expect_s3_class(p@params$width, "unit")
-    expect_s3_class(p@params$height, "unit")
     expect_identical(p@nobs_list$x, NULL)
     expect_identical(p@nobs_list$y, NULL)
 
@@ -26,67 +24,59 @@ testthat::test_that("`ggheatmap` works well", {
     expect_doppelganger("heatmap-data.frame", ggheatmap(data.frame(1:10)))
 })
 
-testthat::test_that("add `heatmap_active` object works well", {
-    # heatmap without data
-    empty_heatmap <- ggheatmap()
-    empty_heatmap2 <- empty_heatmap + hmanno(
-        width = unit(1, "cm"),
-        height = unit(1, "cm"),
-        guides = TRUE,
-        free_labs = TRUE,
-        plot_data = NULL
+testthat::test_that("add `layout_annotation()` works well", {
+    expect_doppelganger(
+        "heatmap-layout-theme",
+        ggheatmap(matrix(1:9, nrow = 3L)) +
+            layout_annotation(
+                theme = theme(plot.background = element_rect(fill = "red"))
+            )
     )
-    params <- empty_heatmap2@params
-    expect_identical(params$width, unit(1, "cm"))
-    expect_identical(params$height, unit(1, "cm"))
-    expect_identical(params$guides, "tlbr")
-    expect_identical(params$free_labs, "tlbr")
-    expect_identical(params$plot_data, NULL)
-    expect_error(empty_heatmap + hmanno("t"))
+})
 
-    # heatmap with data
-    p <- ggheatmap(matrix(1:9, nrow = 3L))
-    # change parameters for heatmap self
-    p2 <- p + hmanno(
-        width = unit(1, "cm"),
-        height = unit(1, "cm"),
-        free_labs = TRUE,
-        plot_data = NULL
+testthat::test_that("add `layout_title()` works well", {
+    expect_doppelganger(
+        "heatmap-layout-annotation",
+        ggheatmap(matrix(1:9, nrow = 3L)) +
+            layout_title(title = "I'm layout title") +
+            layout_annotation(
+                theme = theme(plot.title = element_text(face = "bold"))
+            )
     )
-    params <- p2@params
-    expect_identical(params$width, unit(1, "cm"))
-    expect_identical(params$height, unit(1, "cm"))
-    expect_identical(params$guides, waiver())
-    expect_identical(params$free_labs, "tlbr")
-    expect_identical(params$plot_data, NULL)
+})
 
-    # change parameters for heatmap annotation
-    p3 <- p + hmanno(
-        "t",
-        width = unit(3, "cm"),
-        height = unit(3, "cm"),
-        guides = NULL,
-        free_labs = TRUE,
-        plot_data = NULL
+testthat::test_that("add `hmanno()` works well", {
+    expect_doppelganger(
+        "heatmap-hmanno-width",
+        ggheatmap(matrix(1:9, nrow = 3L)) + hmanno(width = unit(1, "cm"))
     )
-    # won't change the params of heatmap
-    params <- p3@params
-    expect_identical(params$width, unit(NA, "null"))
-    expect_identical(params$height, unit(NA, "null"))
-    expect_identical(params$guides, waiver())
-    expect_identical(params$free_labs, waiver())
-    expect_identical(params$plot_data, waiver())
-
-    # change the params of stack
-    stack <- p3@top
-    expect_identical(get_panel(stack), get_panel(p, "x"))
-    expect_identical(get_index(stack), get_index(p, "x"))
-    expect_identical(get_nobs(stack), get_nobs(p, "x"))
-    params <- stack@params
-    expect_identical(params$size, unit(NA, "null"))
-    expect_identical(params$guides, NULL)
-    expect_identical(params$free_labs, "tlbr")
-    expect_identical(params$plot_data, NULL)
+    expect_doppelganger(
+        "heatmap-hmanno-height",
+        ggheatmap(matrix(1:9, nrow = 3L)) + hmanno(height = unit(1, "cm"))
+    )
+    expect_doppelganger(
+        "heatmap-hmanno-null-guides",
+        ggheatmap(matrix(1:9, nrow = 3L)) +
+            scale_fill_viridis_c() +
+            hmanno(guides = NULL) +
+            hmanno("r") +
+            align_dendro()
+    )
+    expect_doppelganger(
+        "heatmap-hmanno-null-free-guides",
+        ggheatmap(matrix(1:9, nrow = 3L)) +
+            scale_fill_viridis_c() +
+            hmanno(guides = NULL, free_guides = "r") +
+            hmanno("r") +
+            align_dendro()
+    )
+    expect_doppelganger(
+        "heatmap-hmanno-stack-free-guides",
+        ggheatmap(matrix(1:9, nrow = 3L)) +
+            scale_fill_viridis_c() +
+            hmanno("l", free_guides = "l") +
+            align_dendro(aes(color = branch))
+    )
 })
 
 testthat::test_that("add `Align` object works well", {
@@ -99,12 +89,7 @@ testthat::test_that("add `Align` object works well", {
     expect_identical(get_nobs(stack), get_nobs(p2, "x"))
 })
 
-# testthat::test_that("`build_patchwork` works well", {
-#     p <- ggheatmap(1:10)
-#     expect_s3_class(build_patchwork(p), "alignpatches")
-# })
-
-testthat::test_that("`ggplot` method works well", {
+testthat::test_that("`ggsave()` works well", {
     p <- ggheatmap(1:10)
     expect_no_error(ggplot2::ggsave(tempfile(fileext = ".png"), plot = p))
 })

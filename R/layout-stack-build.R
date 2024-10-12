@@ -1,14 +1,14 @@
 #' @export
-alignpatch.StackLayout <- function(x) {
-    .subset2(stack_build(x), "plot")
+ggalign_build.StackLayout <- function(x) {
+    .subset2(stack_build(layout_default(x)), "plot") %||% align_plots()
 }
 
 #' @param panel,index layout of the axis vertically with the stack.
 #' @importFrom grid unit.c
 #' @importFrom rlang is_empty
 #' @noRd
-stack_build <- function(x, plot_data = waiver(), guides = waiver(),
-                        free_labs = waiver(), free_spaces = waiver(),
+stack_build <- function(x, plot_data = waiver(), free_labs = waiver(),
+                        free_spaces = waiver(), theme = waiver(),
                         extra_panel = NULL, extra_index = NULL) {
     if (is.na(nobs <- get_nobs(x))) { # no plots
         return(list(plot = NULL, size = NULL))
@@ -19,48 +19,58 @@ stack_build <- function(x, plot_data = waiver(), guides = waiver(),
     index <- get_index(x) %||% reorder_index(panel)
 
     plots <- x@plots
-    plot_data <- .subset2(params, "plot_data") %|w|% plot_data
-    guides <- .subset2(params, "guides") %|w|% guides
 
-    # unlike heatmap layout, stack `free_labs` and `free_spaces` were used
-    # by all plots
-    free_labs <- .subset2(params, "free_labs") %|w|% free_labs %|w|% "tlbr"
-    free_spaces <- .subset2(params, "free_spaces") %|w|% free_spaces %|w|% NULL
+    # we remove the plot without actual plot area
+    keep <- vapply(plots, function(plot) {
+        (is_align(plot) && !is.null(.subset2(plot, "plot"))) ||
+            is_ggheatmap(plot)
+    }, logical(1L), USE.NAMES = FALSE)
+    plots <- .subset(plots, keep)
+    if (is_empty(plots)) {
+        return(list(plot = NULL, size = NULL))
+    }
 
     # we reorder the plots based on the `order` slot
-    plot_index <- order(vapply(plots, function(plot) {
-        if (is.align(plot)) {
+    plot_order <- vapply(plots, function(plot) {
+        if (is_align(plot)) {
             .subset2(plot, "order")
         } else {
-            NA_integer_
+            plot@order
         }
-    }, integer(1L)))
-    plots <- .subset(plots, plot_index)
+    }, integer(1L), USE.NAMES = FALSE)
+    plots <- .subset(plots, make_order(plot_order))
+
+    # build the stack
+    plot_data <- .subset2(params, "plot_data") %|w|% plot_data
+    free_labs <- .subset2(params, "free_labs") %|w|% free_labs
+    free_spaces <- .subset2(params, "free_spaces") %|w|% free_spaces
+    theme <- inherit_theme(.subset2(params, "theme"), theme)
     patches <- stack_patch(direction)
     has_top <- FALSE
     has_bottom <- FALSE
     for (plot in plots) {
-        if (is.align(plot)) {
+        if (is_align(plot)) {
             patch <- align_build(plot,
                 panel = panel, index = index,
                 extra_panel = extra_panel,
                 extra_index = extra_index,
-                plot_data = plot_data,
-                free_labs = free_labs,
-                free_spaces = free_spaces
+                plot_data = plot_data %|w|% NULL,
+                free_labs = free_labs %|w|% "tlbr",
+                free_spaces = free_spaces %|w|% NULL,
+                theme = theme
             )
             patches <- stack_patch_add_align(
                 patches,
                 .subset2(patch, "plot"),
                 .subset2(patch, "size")
             )
-        } else if (is.ggheatmap(plot)) {
+        } else if (is_ggheatmap(plot)) {
             # for a heatmap
             patch <- heatmap_build(plot,
                 plot_data = plot_data,
-                guides = guides,
                 free_labs = free_labs,
-                free_spaces = free_spaces
+                free_spaces = free_spaces,
+                theme = theme
             )
             heatmap_plots <- .subset2(patch, "plots")
             patches <- stack_patch_add_heatmap(
@@ -81,6 +91,7 @@ stack_build <- function(x, plot_data = waiver(), guides = waiver(),
     if (is_empty(.subset2(patches, "plots"))) {
         return(list(plot = NULL, size = NULL))
     }
+    titles <- x@titles
     plot <- align_plots(
         !!!.subset2(patches, "plots"),
         design = area(
@@ -92,17 +103,21 @@ stack_build <- function(x, plot_data = waiver(), guides = waiver(),
         widths = switch_direction(
             direction,
             do.call(unit.c, attr(patches, "sizes")),
-            .subset2(params, "sizes")[c(has_top, TRUE, has_bottom)]
+            x@sizes[c(has_top, TRUE, has_bottom)]
         ),
         heights = switch_direction(
             direction,
-            .subset2(params, "sizes")[c(has_top, TRUE, has_bottom)],
+            x@sizes[c(has_top, TRUE, has_bottom)],
             do.call(unit.c, attr(patches, "sizes"))
         ),
-        guides = guides %|w|% "tlbr",
+        guides = .subset2(params, "guides"),
         theme = x@theme
+    ) + layout_title(
+        title = .subset2(titles, "title"),
+        subtitle = .subset2(titles, "subtitle"),
+        caption = .subset2(titles, "caption")
     )
-    list(plot = plot, size = .subset2(params, "size"))
+    list(plot = plot, size = x@size)
 }
 
 stack_patch <- function(direction) {
@@ -163,13 +178,13 @@ stack_patch_add_heatmap <- function(area, plots, sizes) {
                 attr(area, "align") <- attr(area, "align") + 1L
             }
             if (!is_null_unit(size <- .subset2(sizes, "top"))) {
-                attr(top, "vp_height") <- size
+                attr(top, "vp")$height <- size
             }
             area <- stack_patch_add_plot(area, top, t = 1L, l = l)
         }
         if (!is.null(bottom <- .subset2(plots, "bottom"))) {
             if (!is_null_unit(size <- .subset2(sizes, "bottom"))) {
-                attr(bottom, "vp_height") <- size
+                attr(bottom, "vp")$height <- size
             }
             area <- stack_patch_add_plot(area, bottom,
                 t = attr(area, "align") + 1L, l = l
@@ -199,13 +214,13 @@ stack_patch_add_heatmap <- function(area, plots, sizes) {
                 attr(area, "align") <- attr(area, "align") + 1L
             }
             if (!is_null_unit(size <- .subset2(sizes, "left"))) {
-                attr(left, "vp_width") <- size
+                attr(left, "vp")$width <- size
             }
             area <- stack_patch_add_plot(area, left, t = t, l = 1L)
         }
         if (!is.null(right <- .subset2(plots, "right"))) {
             if (!is_null_unit(size <- .subset2(sizes, "right"))) {
-                attr(right, "vp_width") <- size
+                attr(right, "vp")$width <- size
             }
             area <- stack_patch_add_plot(area, right,
                 t = t, l = attr(area, "align") + 1L

@@ -3,6 +3,48 @@ layout_stack_add <- function(object, stack, object_name) {
     UseMethod("layout_stack_add")
 }
 
+#' @export
+layout_stack_add.default <- function(object, stack, object_name) {
+    if (is.null(active_index <- get_context(stack))) {
+        cli::cli_abort(c(
+            "Cannot add {.code {object_name}} into the stack layout",
+            i = "No active {.cls ggplot} object",
+            i = paste(
+                "Did you forget to initialize a {.cls ggplot} object",
+                "with {.fn ggalign}?"
+            )
+        ))
+    }
+    plot <- stack@plots[[active_index]]
+    if (is_ggheatmap(plot)) {
+        plot <- layout_heatmap_add(object, plot, object_name)
+    } else {
+        plot <- align_add(object, plot, object_name)
+    }
+    stack@plots[[active_index]] <- plot
+    stack
+}
+
+#' @export
+layout_stack_add.layout_annotation <- function(object, stack, object_name) {
+    active_index <- get_context(stack)
+    if (!is.null(active_index) &&
+        is_ggheatmap(plot <- stack@plots[[active_index]])) {
+        stack@plots[[active_index]] <- layout_heatmap_add(
+            object, plot, object_name
+        )
+    } else {
+        stack@annotation <- alignpatches_update(
+            stack@annotation, .subset2(object, "annotation")
+        )
+        stack@theme <- update_layout_theme(
+            stack@theme, .subset2(object, "theme")
+        )
+    }
+    stack
+}
+
+###################################################################
 # `Align` can be added for both heatmap and stack layout
 #' @importFrom methods slot slot<-
 #' @export
@@ -13,37 +55,23 @@ layout_stack_add.Align <- function(object, stack, object_name) {
     )
 }
 
-#' @importFrom methods slot
 #' @export
 layout_stack_add.stack_active <- function(object, stack, object_name) {
-    stack <- set_context(stack, object)
-    if (!is.null(sizes <- attr(object, "sizes"))) {
-        stack@params$sizes <- sizes
+    if (!is.waive(what <- .subset2(object, "what"))) {
+        stack <- set_context(stack, what)
     }
-    if (!identical(guides <- attr(object, "guides"), NA)) {
-        stack@params$guides <- guides
+    if (!is.null(sizes <- .subset2(object, "sizes"))) {
+        stack@sizes <- sizes
     }
-    if (!identical(free_labs <- attr(object, "free_labs"), NA)) {
-        stack@params$free_labs <- free_labs
-    }
-    if (!identical(free_spaces <- attr(object, "free_spaces"), NA)) {
-        stack@params$free_spaces <- free_spaces
-    }
-    if (!identical(plot_data <- attr(object, "plot_data"), NA)) {
-        stack@params$plot_data <- plot_data
-    }
-    if (!is.null(theme <- attr(object, "theme"))) {
-        stack@theme <- stack@theme + theme
-    }
-    stack
+    layout_add_active(.subset2(object, "active"), stack, object_name)
 }
 
-#' @importFrom methods slot
 #' @export
 layout_stack_add.heatmap_active <- function(object, stack, object_name) {
     stack_add_heatmap_element(object, stack, object_name, TRUE)
 }
 
+#' @importFrom rlang try_fetch
 #' @importFrom methods slot
 #' @export
 layout_stack_add.HeatmapLayout <- function(object, stack, object_name) {
@@ -57,7 +85,7 @@ layout_stack_add.HeatmapLayout <- function(object, stack, object_name) {
             cli::cli_abort(c(
                 paste(
                     "You must provide {.arg data} argument in",
-                    style_code(object_name)
+                    "{.var {object_name}}"
                 ),
                 i = "No data was found in the stack layout"
             ))
@@ -68,11 +96,11 @@ layout_stack_add.HeatmapLayout <- function(object, stack, object_name) {
         if (is.function(heatmap_data)) {
             data <- heatmap_data(data)
             call <- current_call()
-            data <- tryCatch(
+            data <- try_fetch(
                 as.matrix(data),
                 error = function(cnd) {
                     cli::cli_abort(paste(
-                        "{.arg data} in {.code {object_name}} must return",
+                        "{.arg data} in {.var {object_name}} must return",
                         "a matrix-like object"
                     ), call = call)
                 }
@@ -96,9 +124,8 @@ layout_stack_add.HeatmapLayout <- function(object, stack, object_name) {
         nobs <- heatmap_nobs
     } else if (!identical(heatmap_nobs, stack_nobs)) {
         cli::cli_abort(sprintf(
-            "%s (%d) is not compatible with the %s stack layout (%d)",
-            style_code(object_name), heatmap_nobs,
-            style_field(direction), stack_nobs
+            "{.var {object_name}} (%d) is not compatible with the %s (%d)",
+            heatmap_nobs, "{.field {direction}} stack layout", stack_nobs
         ))
     } else {
         nobs <- stack_nobs
@@ -113,7 +140,7 @@ layout_stack_add.HeatmapLayout <- function(object, stack, object_name) {
         panel <- heatmap_panel
     } else if (!identical(heatmap_panel, stack_panel)) {
         cli::cli_abort(paste(
-            "{.code {object_name}} disrupt the previously",
+            "{.var {object_name}} disrupt the previously",
             "established layout panel of the stack"
         ))
     } else {
@@ -131,9 +158,8 @@ layout_stack_add.HeatmapLayout <- function(object, stack, object_name) {
     if (!is.null(stack_index)) {
         if (!all(stack_index == index)) {
             cli::cli_abort(sprintf(
-                "{.code {object_name}} disrupt the previously %s %s-axis",
-                "established layout order of the stack",
-                axis
+                "{.var {object_name}} disrupt the previously %s %s-axis",
+                "established layout order of the stack", axis
             ))
         }
     }
@@ -152,7 +178,9 @@ layout_stack_add.HeatmapLayout <- function(object, stack, object_name) {
     # check heatmap name is unique ----------------------
     if (!is.na(name <- object@name)) {
         if (any(names(plots) == name)) {
-            cli::cli_warn("{object_name}: {name} plot is already present")
+            cli::cli_warn(
+                "{.var {object_name}}: {name} plot is already present"
+            )
         }
         plots[[name]] <- object
     } else {
@@ -170,10 +198,12 @@ layout_stack_add.HeatmapLayout <- function(object, stack, object_name) {
     stack
 }
 
-###################################################################
 #' @export
-layout_stack_add.gg <- function(object, stack, object_name) {
-    stack_add_ggelement(object, stack, object_name, "the stack layout")
+layout_stack_add.list <- function(object, stack, object_name) {
+    for (o in object) {
+        stack <- layout_stack_add(o, stack, object_name)
+    }
+    stack
 }
 
 #' @export
@@ -182,20 +212,6 @@ layout_stack_add.ggplot <- function(object, stack, object_name) {
         "Cannot add {.code {object_name}} into the stack layout",
         i = "try to use {.fn ggalign} to initialize a {.cls ggplot} object"
     ))
-}
-
-#' @export
-layout_stack_add.labels <- layout_stack_add.gg
-
-#' @export
-layout_stack_add.facetted_pos_scales <- layout_stack_add.gg
-
-#' @export
-layout_stack_add.NULL <- function(object, stack, object_name) stack
-
-#' @export
-layout_stack_add.default <- function(object, stack, object_name) {
-    cli::cli_abort("Cannot add {.code {object_name}} into the stack layout")
 }
 
 #################################################################
@@ -210,7 +226,7 @@ stack_add_align <- function(object, stack, object_name) {
     }
 
     # check annotation name is unique --------------------
-    if (!is.null(name <- .subset2(object, "name"))) {
+    if (!is.na(name <- .subset2(object, "name"))) {
         if (any(names(plots) == name)) {
             cli::cli_warn("{object_name}: {name} plot is already present")
         }
@@ -223,7 +239,9 @@ stack_add_align <- function(object, stack, object_name) {
     # this step the object will act with the stack layout
     # group rows into panel or reorder rows
     layout <- initialize_align(
-        object, stack@direction,
+        object,
+        direction = stack@direction,
+        position = stack@position,
         layout_data = stack@data,
         layout_panel = get_panel(stack),
         layout_index = get_index(stack),
@@ -254,7 +272,7 @@ stack_add_ggelement <- function(object, stack, object_name, layout_name) {
         ))
     }
     plot <- stack@plots[[active_index]]
-    if (is.ggheatmap(plot)) {
+    if (is_ggheatmap(plot)) {
         plot <- layout_heatmap_add(object, plot, object_name)
     } else {
         plot <- align_add(object, plot, object_name)
@@ -268,7 +286,7 @@ stack_add_ggelement <- function(object, stack, object_name, layout_name) {
 stack_add_heatmap_element <- function(object, stack, object_name, force,
                                       stack_add_fun) {
     if (!is.null(active_index <- get_context(stack)) &&
-        is.ggheatmap(plot <- .subset2(stack@plots, active_index))) {
+        is_ggheatmap(plot <- .subset2(stack@plots, active_index))) {
         plot <- layout_heatmap_add(object, plot, object_name)
         stack@plots[[active_index]] <- plot
         axis <- to_coord_axis(stack@direction)
@@ -278,7 +296,7 @@ stack_add_heatmap_element <- function(object, stack, object_name, force,
     } else if (force) {
         cli::cli_abort(c(
             "Cannot add {.code {object_name}}",
-            i = "No active {.cls HeatmapLayout} object",
+            i = "No active {.fn heatmap_layout} object",
             i = "Did you forget to add a {.fn ggheatmap}?"
         ))
     } else {
