@@ -4,15 +4,20 @@ alignpatch.alignpatches <- function(x) {
     ggproto(NULL, PatchAlignpatches, plot = x)
 }
 
-#' @importFrom vctrs new_data_frame
 PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
     # We by default won't collect any guides
-    guides = NULL,
-    set_theme = function(theme) theme,
+    guides = NULL, theme = NULL,
+    set_guides = function(self, guides, plot = self$plot) guides,
+    set_theme = function(self, theme, plot = self$plot) {
+        # theme is from parent layout
+        if (is.null(t <- .subset2(plot, "theme"))) return(theme) # styler: off
+        # we'll always initialize the parent layout theme
+        # so it won't be NULL
+        theme + t
+    },
     #' @importFrom gtable gtable gtable_add_grob
     #' @importFrom grid unit
     #' @importFrom ggplot2 wrap_dims calc_element zeroGrob
-    #' @importFrom vctrs vec_slice
     patch_gtable = function(self, top_level = FALSE, plot = self$plot) {
         patches <- lapply(.subset2(plot, "plots"), alignpatch)
         layout <- .subset2(plot, "layout")
@@ -37,22 +42,22 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
                 .subset2(layout, "byrow")
             )
         } else {
-            dims <- c(max(.subset2(design, "b")), max(.subset2(design, "r")))
+            dims <- c(max(field(design, "b")), max(field(design, "r")))
         }
 
         # filter `plots` based on the design areas --------------------
-        if (nrow(design) < length(patches)) {
+        if (vec_size(design) < vec_size(patches)) {
             cli::cli_warn(
                 "Too few patch areas to hold all plots. Dropping plots"
             )
-            plots <- patches[seq_len(nrow(design))]
+            plots <- vec_slice(patches, vec_seq_along(design))
         } else {
             design <- vec_slice(design, seq_along(patches))
         }
 
         # remove NULL patch -----------------------------------
         keep <- !vapply(patches, is.null, logical(1L), USE.NAMES = FALSE)
-        patches <- .subset(patches, keep)
+        patches <- vec_slice(patches, keep)
 
         # if no plots, we return empty gtable -----------------
         if (is_empty(patches)) return(make_patch_table()) # styler: off
@@ -61,14 +66,14 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
         design <- vec_slice(design, keep)
         for (i in seq_along(patches)) {
             patches[[i]]$borders <- c(
-                if (.subset2(design, "t")[i] == 1L) "top" else NULL,
-                if (.subset2(design, "l")[i] == 1L) "left" else NULL,
-                if (.subset2(design, "b")[i] == .subset(dims, 1L)) {
+                if (field(design, "t")[i] == 1L) "top" else NULL,
+                if (field(design, "l")[i] == 1L) "left" else NULL,
+                if (field(design, "b")[i] == .subset(dims, 1L)) {
                     "bottom"
                 } else {
                     NULL
                 },
-                if (.subset2(design, "r")[i] == .subset(dims, 2L)) {
+                if (field(design, "r")[i] == .subset(dims, 2L)) {
                     "right"
                 } else {
                     NULL
@@ -77,27 +82,15 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
         }
 
         # we inherit parameters from the parent --------------------
-        # in `alignpatches` object, `self$guides` and `self$theme` will always
-        # be the parent parameters, we always attach the parent `gudies` and
-        # `theme` in `self`
-        #
-        # `self$guides` by default is `NULl`, if this is a
-        # nested alignpatches, `self$guides` should be set by
-        # `$set_guides()` method, which is the parent guides
+        # by default, we won't collect any guide legends
         guides <- .subset2(layout, "guides") %|w|% self$guides
-        # the same applies to theme but use `$set_theme()` method
-        # the top-level alignpatches will always complete theme in
-        # `ggalign_gtable.alignpatches`.
-        if (is.null(theme <- .subset2(plot, "theme"))) {
-            theme <- self$theme
-        } else {
-            theme <- complete_theme(theme)
-        }
 
+        # by default, we use ggplot2 default theme
+        theme <- self$theme %||% self$set_theme(theme_get(), plot = plot)
+
+        # Let each patch to determine whether to collect guides and the theme
         for (patch in patches) {
-            # Let each patch to determine whether to collect guides
             patch$guides <- patch$set_guides(guides)
-            # inherit theme for nested `alignpatches` object only
             patch$theme <- patch$set_theme(theme)
         }
 
@@ -110,12 +103,15 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
         # 2. collect_guides_list: call `collect_guides`, can change the internal
         #    `gt`
         # 3. set_sizes:
-        #     - (TODO) align_panel_spaces: can change the internal `gt`
+        #     - (To-Do) align_panel_spaces: can change the internal `gt`
         #     - align_panel_sizes, can change the internal `gt`
+        #     - get_sizes, the widths and heights for the internal `gt`
         # 4. set_grobs: will call `align_border` and `split_gt`, return the
         #    final gtable
         # setup gtable list ----------------------------------
-        for (patch in patches) patch$gt <- patch$patch_gtable()
+        for (patch in patches) {
+            patch$gt <- patch$patch_gtable()
+        }
 
         # collect guides  ---------------------------------------
         collected_guides <- self$collect_guides_list(patches)
@@ -150,8 +146,6 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
             )
         } else {
             # used by `$collect_guides() method`
-            # if this is a nested alignpatches, theme will be automatically
-            # attached by` $set_theme()`
             self$collected_guides <- collected_guides
             self$panel_pos <- panel_pos
         }
@@ -195,6 +189,11 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
                 name = "background", z = 0L
             )
         }
+
+        # arrange the grobs
+        idx <- order(.subset2(.subset2(gt, "layout"), "z"))
+        gt$layout <- vec_slice(.subset2(gt, "layout"), idx)
+        gt$grobs <- .subset(.subset2(gt, "grobs"), idx)
         gt
     },
     align_border = function(self, t = NULL, l = NULL, b = NULL, r = NULL,
@@ -209,12 +208,14 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
             patch$align_border(t = t, l = l, b = b, r = r, gt = grob)
         }, t = t, l = l, b = b, r = r, gt = gt, patches = patches)
     },
-    # split_gt = function(self, gt = self$gt) list(bg = NULL, plot = gt),
     collect_guides = function(self, guides = self$guides, gt = self$gt) {
         collected_guides <- self$collected_guides
         # for guides not collected by the top-level, we attach the guides
         self$gt <- self$attach_guide_list(
-            .subset(collected_guides, setdiff(names(collected_guides), guides)),
+            .subset(
+                collected_guides,
+                vec_set_difference(names(collected_guides), guides)
+            ),
             gt = gt
         )
         # return guides to be collected
@@ -227,10 +228,10 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
             unlist(lapply(ans, .subset2, guide_pos), FALSE, FALSE)
         })
         names(ans) <- .TLBR
-        ans <- compact(ans)
+        ans <- list_drop_empty(ans)
         # remove duplicated guides
         ans <- lapply(ans, collapse_guides)
-        compact(ans)
+        list_drop_empty(ans)
     },
     #' @importFrom grid is.unit unit
     set_sizes = function(self, design, dims,
@@ -247,17 +248,22 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
         # if it cannot be fixed and aligned, the strip, axis and labs will be
         # attached into the panel
         # the plot to be fixed must in only one square of the area
-        need_fix <- .subset2(design, "l") == .subset2(design, "r") &
-            .subset2(design, "t") == .subset2(design, "b") &
-            vapply(patches, function(patch) patch$respect(), logical(1L))
+        need_fix <- field(design, "l") == field(design, "r") &
+            field(design, "t") == field(design, "b") &
+            vapply(
+                patches,
+                function(patch) patch$respect(),
+                logical(1L),
+                USE.NAMES = FALSE
+            )
 
         # here we respect the aspect ratio when necessary -----
         # if the width or height is NA, we will guess the panel widths or
         # heights based on the fixed aspect ratio
         guess_widths <- which(is.na(as.numeric(panel_widths)))
         guess_heights <- which(is.na(as.numeric(panel_heights)))
-        cols <- .subset2(design, "l")
-        rows <- .subset2(design, "t")
+        cols <- field(design, "l")
+        rows <- field(design, "t")
         patch_index <- order(
             # we first set the widths for the fixed plot with heights set by
             # user
@@ -334,7 +340,6 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
     },
 
     #' @importFrom gtable gtable_add_grob
-    #' @importFrom vctrs vec_slice
     set_grobs = function(self, design, patches, gt = self$gt) {
         widths <- .subset2(gt, "widths")
         heights <- .subset2(gt, "heights")
@@ -342,13 +347,13 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
             loc <- vec_slice(design, i)
             # We must align the borders for the gtable grob with the
             # final plot area sizes
-            l <- (.subset2(loc, "l") - 1L) * TABLE_COLS + 1L
+            l <- (field(loc, "l") - 1L) * TABLE_COLS + 1L
             l_widths <- widths[seq(l, l + LEFT_BORDER - 1L)]
-            r <- .subset2(loc, "r") * TABLE_COLS
+            r <- field(loc, "r") * TABLE_COLS
             r_widths <- widths[seq(r - RIGHT_BORDER + 1L, r)]
-            t <- (.subset2(loc, "t") - 1L) * TABLE_ROWS + 1L
+            t <- (field(loc, "t") - 1L) * TABLE_ROWS + 1L
             t_heights <- heights[seq(t, t + TOP_BORDER - 1L)]
-            b <- .subset2(loc, "b") * TABLE_ROWS
+            b <- field(loc, "b") * TABLE_ROWS
             b_heights <- heights[seq(b - BOTTOM_BORDER + 1L, b)]
             patch <- .subset2(patches, i)
 
@@ -408,9 +413,8 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
                              gt = self$gt) {
         guides <- assemble_guides(guides, guide_pos, theme = theme)
         spacing <- .subset2(theme, "legend.box.spacing")
-        legend_width <- gtable_width(guides)
-        legend_height <- gtable_height(guides)
         if (guide_pos == "left") {
+            legend_width <- gtable_width(guides)
             gt <- gtable_add_grob(
                 x = gt,
                 grobs = guides,
@@ -423,6 +427,7 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
                 spacing, legend_width
             )
         } else if (guide_pos == "right") {
+            legend_width <- gtable_width(guides)
             gt <- gtable_add_grob(
                 x = gt, grobs = guides,
                 t = panel_pos$t,
@@ -434,24 +439,36 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
                 spacing, legend_width
             )
         } else if (guide_pos == "bottom") {
+            location <- .subset2(theme, "legend.location") %||% "panel"
+            place <- switch(location,
+                panel = panel_pos,
+                list(l = 1L, r = ncol(gt))
+            )
+            legend_height <- gtable_height(guides)
             gt <- gtable_add_grob(
                 x = gt,
                 grobs = guides,
                 t = panel_pos$b + 6L,
-                l = panel_pos$l,
-                r = panel_pos$r,
+                l = place$l,
+                r = place$r,
                 ...
             )
             gt$heights[.subset2(panel_pos, "b") + 5:6] <- unit.c(
                 spacing, legend_height
             )
         } else if (guide_pos == "top") {
+            location <- .subset2(theme, "legend.location") %||% "panel"
+            place <- switch(location,
+                panel = panel_pos,
+                list(l = 1L, r = ncol(gt))
+            )
+            legend_height <- gtable_height(guides)
             gt <- gtable_add_grob(
                 x = gt,
                 grobs = guides,
                 t = panel_pos$t - 6L,
-                l = panel_pos$l,
-                r = panel_pos$r,
+                l = place$l,
+                r = place$r,
                 ...
             )
             gt$heights[.subset2(panel_pos, "t") - 5:6] <- unit.c(
@@ -460,10 +477,11 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
         }
         gt
     },
+
     #' @importFrom rlang is_empty
-    free_border = function(self, borders,
-                           gt = self$gt, patches = self$patches) {
-        self$recurse_lapply(
+    free_border = function(self, borders, gt = self$gt,
+                           patches = self$patches) {
+        gt <- self$recurse_lapply(
             function(patch, grob, t, l, b, r) {
                 borders <- intersect(borders, c(t, l, b, r))
                 if (is_empty(borders)) return(grob) # styler: off
@@ -472,7 +490,35 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
             t = "top", l = "left", b = "bottom", r = "right",
             gt = gt, patches = patches
         )
+        # for the collected guides, we should also liberate them
+        guide_index <- sprintf("guide-box-collected-%s", borders) %in%
+            .subset2(.subset2(gt, "layout"), "name")
+        if (any(guide_index)) {
+            gt <- PatchGgplot$free_border(
+                borders = borders[guide_index], gt = gt
+            )
+        }
+        gt
     },
+    align_free_border = function(self, borders,
+                                 t = NULL, l = NULL, b = NULL, r = NULL,
+                                 gt = self$gt, patches = self$patches) {
+        gt <- self$recurse_lapply(
+            function(patch, grob, t, l, b, r) {
+                patch$align_free_border(
+                    borders = borders,
+                    t = t, l = l, b = b, r = r, gt = grob
+                )
+            },
+            t = t, l = l, b = b, r = r,
+            gt = gt, patches = patches
+        )
+        PatchGgplot$align_free_border(
+            borders = borders,
+            t = t, l = l, b = b, r = r, gt = gt
+        )
+    },
+
     #' @importFrom rlang is_empty
     free_lab = function(self, labs, gt = self$gt, patches = self$patches) {
         self$recurse_lapply(
@@ -537,7 +583,7 @@ table_sizes <- function(sizes, design, ncol, nrow) {
         col_loc <- i %% TABLE_COLS
         if (col_loc == 0L) col_loc <- TABLE_COLS
         area_side <- if (col_loc <= LEFT_BORDER + 1L) "l" else "r"
-        idx <- .subset2(design, area_side) == area_col
+        idx <- field(design, area_side) == area_col
         if (any(idx)) {
             max(
                 vapply(.subset(widths, idx), .subset, numeric(1L), col_loc),
@@ -546,7 +592,7 @@ table_sizes <- function(sizes, design, ncol, nrow) {
         } else {
             0L
         }
-    }, numeric(1L))
+    }, numeric(1L), USE.NAMES = FALSE)
     heights <- lapply(sizes, function(size) {
         convertHeight(.subset2(size, "heights"), "mm", valueOnly = TRUE)
     })
@@ -555,15 +601,19 @@ table_sizes <- function(sizes, design, ncol, nrow) {
         row_loc <- i %% TABLE_ROWS
         if (row_loc == 0L) row_loc <- TABLE_ROWS
         area_side <- if (row_loc <= TOP_BORDER + 1L) "t" else "b"
-        idx <- .subset2(design, area_side) == area_row
+        idx <- field(design, area_side) == area_row
         if (any(idx)) {
             max(
-                vapply(.subset(heights, idx), .subset, numeric(1L), row_loc),
+                vapply(
+                    .subset(heights, idx), .subset, numeric(1L),
+                    row_loc,
+                    USE.NAMES = FALSE
+                ),
                 0L
             )
         } else {
             0L
         }
-    }, numeric(1L))
+    }, numeric(1L), USE.NAMES = FALSE)
     list(widths = unit(widths, "mm"), heights = unit(heights, "mm"))
 }

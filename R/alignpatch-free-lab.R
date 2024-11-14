@@ -1,5 +1,5 @@
 #' @param labs Which axis labs to be free? A string containing one or more of
-#' `r rd_values(.tlbr)`.
+#' `r oxford_and(.tlbr)`.
 #' @return
 #' - `free_lab`: A modified version of `plot` with a `free_lab` class.
 #' @export
@@ -17,9 +17,6 @@ free_lab.ggplot <- function(plot, labs = "tlbr") {
 
 #' @export
 free_lab.alignpatches <- free_lab.ggplot
-
-#' @export
-free_lab.free_space <- free_lab.ggplot
 
 #' @export
 free_lab.free_align <- function(plot, labs = "tlbr") {
@@ -57,14 +54,17 @@ alignpatch.free_lab <- function(x) {
     ggproto(
         "PatchFreeLab", Parent,
         free_labs = setup_pos(attr(x, "free_labs")),
-        patch_gtable = function(self, plot = self$plot) {
-            ans <- ggproto_parent(Parent, self)$patch_gtable(plot = plot)
-            ggproto_parent(Parent, self)$free_lab(
-                labs = self$free_labs, gt = ans
+        collect_guides = function(self, guides = self$guides, gt = self$gt) {
+            ans <- ggproto_parent(Parent, self)$collect_guides(
+                guides = guides, gt = gt
             )
+            self$gt <- ggproto_parent(Parent, self)$free_lab(
+                labs = self$free_labs, gt = self$gt
+            )
+            ans
         },
         free_lab = function(self, labs, gt = self$gt) {
-            if (length(labs <- setdiff(labs, self$free_labs))) {
+            if (length(labs <- vec_set_difference(labs, self$free_labs))) {
                 gt <- ggproto_parent(Parent, self)$free_lab(
                     labs = labs, gt = gt
                 )

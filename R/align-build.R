@@ -1,58 +1,42 @@
 #' @importFrom ggplot2 theme element_blank
-align_build <- function(x, panel, index,
-                        extra_panel, extra_index,
-                        plot_data, free_labs, free_spaces, theme) {
-    # we lock the Align object to prevent user from modifying this object
-    # in `$draw` method, we shouldn't do any calculations in `$draw` method
-    x$lock()
-    on.exit(x$unlock())
-
-    # let `align` to determine how to draw
+#' @importFrom rlang inject
+align_build <- function(align, panel, index, controls, extra_layout) {
+    # let `Align` to determine how to draw
     # 1. add default layer
     # 2. add plot data
-    direction <- .subset2(x, "direction")
-    params <- .subset2(x, "params")
+    object <- .subset2(align, "Object") # `Align` object
+
+    # we lock the Align object to prevent user from modifying this object
+    # in `$draw` method, we shouldn't do any calculations in `$draw` method
+    object$lock()
+    on.exit(object$unlock())
+
+    direction <- .subset2(object, "direction")
+    params <- .subset2(object, "params")
     draw_params <- params[
-        intersect(
+        vec_set_intersect(
             names(params),
             align_method_params(
-                x$draw,
-                c("panel", "index", "extra_panel", "extra_index")
+                object$draw,
+                c("plot", "panel", "index", "extra_panel", "extra_index")
             )
         )
     ]
-    plot <- rlang::inject(x$draw(
-        panel, index, extra_panel, extra_index,
-        !!!draw_params
+    if (is.null(extra_layout)) {
+        extra_panel <- NULL
+        extra_index <- NULL
+    } else {
+        extra_panel <- .subset2(extra_layout, "panel")
+        extra_index <- .subset2(extra_layout, "index")
+    }
+    plot <- inject(object$draw(
+        .subset2(align, "plot"),
+        panel, index, extra_panel,
+        extra_index, !!!draw_params
     ))
 
-    # we always set the default value from the layout
-    free_guides <- .subset2(x, "free_guides")
-    plot_data <- .subset2(x, "plot_data") %|w|% plot_data
-    free_labs <- .subset2(x, "free_labs") %|w|% free_labs
-    free_spaces <- .subset2(x, "free_spaces") %|w|% free_spaces
-    theme <- inherit_theme(.subset2(x, "theme"), theme)
-    plot <- finish_plot_data(plot, plot_data, call = .subset2(x, "call"))
-
-    # remove the title and text of axis parallelly with the layout
-    plot$theme <- theme +
-        switch_direction(
-            direction,
-            theme(
-                axis.title.y = element_blank(),
-                axis.text.y = element_blank(),
-                axis.ticks.y = element_blank()
-            ),
-            theme(
-                axis.title.x = element_blank(),
-                axis.text.x = element_blank(),
-                axis.ticks.x = element_blank()
-            )
-        ) +
-        plot$theme
-
     # only when user use the internal facet, we'll setup the limits
-    if (.subset2(x, "facet")) {
+    if (.subset2(align, "facet")) {
         # set up facets
         if (nlevels(panel) > 1L) {
             default_facet <- switch_direction(
@@ -71,34 +55,34 @@ align_build <- function(x, panel, index,
         } else {
             default_facet <- ggplot2::facet_null()
         }
-        params <- list(
+        layout <- list(
             panel = panel, index = index,
-            labels = .subset2(x, "labels")
+            labels = .subset2(object, "labels")
         )
         plot <- plot + align_melt_facet(plot$facet, default_facet, direction) +
             switch_direction(
                 direction,
-                facet_ggalign(y = params),
-                facet_ggalign(x = params)
+                facet_ggalign(y = layout),
+                facet_ggalign(x = layout)
             )
+
         # set up coord limits to align each observation
-        if (.subset2(x, "limits")) {
+        if (.subset2(align, "limits")) {
             plot <- plot +
                 switch_direction(
                     direction,
-                    coord_ggalign(ylim_list = set_limits("y", params)),
-                    coord_ggalign(xlim_list = set_limits("x", params))
+                    coord_ggalign(ylim_list = set_limits("y", layout)),
+                    coord_ggalign(xlim_list = set_limits("x", layout))
                 )
         }
     }
-    if (!is.waive(free_guides)) plot <- free_guide(plot, free_guides)
-    if (!is.null(free_labs)) {
-        plot <- free_lab(plot, free_labs)
+    # remove axis titles, text, ticks used for alignment
+    if (isTRUE(.subset2(align, "no_axes"))) {
+        controls$plot_theme <- .subset2(controls, "plot_theme") +
+            theme_no_axes(switch_direction(direction, "y", "x"))
     }
-    if (!is.null(free_spaces)) {
-        plot <- free_space(free_border(plot, free_spaces), free_spaces)
-    }
-    list(plot = plot, size = .subset2(x, "size"))
+    plot <- plot_add_controls(plot, controls)
+    list(plot = plot, size = .subset2(align, "size"))
 }
 
 #' @importFrom ggplot2 ggproto
@@ -143,23 +127,6 @@ align_melt_facet <- function(user_facet, default_facet, direction) {
     } else {
         default_facet
     }
-}
-
-finish_plot_data <- function(plot, plot_data,
-                             data = .subset2(plot, "data"),
-                             call = caller_call()) {
-    if (!is.null(plot_data)) {
-        if (!is.data.frame(data <- plot_data(data))) {
-            cli::cli_abort(
-                "{.arg plot_data} must return a {.cls data.frame}",
-                call = call
-            )
-        }
-        plot$data <- data
-    } else {
-        plot$data <- data
-    }
-    plot
 }
 
 remove_scales <- function(plot, scale_aesthetics) {

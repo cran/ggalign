@@ -1,8 +1,16 @@
+params <-
+list(mode = "release", release = "https://yunuuuu.github.io/ggalign", 
+    devel = "https://yunuuuu.github.io/ggalign/dev")
+
 ## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
+    collapse = TRUE,
+    comment = "#>"
 )
+
+## ----echo=FALSE---------------------------------------------------------------
+mode <- params$mode
+url <- params[[mode]]
 
 ## ----setup_data---------------------------------------------------------------
 set.seed(123)
@@ -17,191 +25,114 @@ ggheatmap(small_mat)
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) + geom_point() + scale_fill_viridis_c()
 
+## -----------------------------------------------------------------------------
+ggheatmap(small_mat, filling = "raster")
+
+## -----------------------------------------------------------------------------
+ggheatmap(small_mat, filling = "tile")
+
+## -----------------------------------------------------------------------------
+ggheatmap(small_mat, filling = NULL) +
+    geom_tile(aes(fill = value), color = "black", width = 0.9, height = 0.9)
+
+## -----------------------------------------------------------------------------
+set.seed(123)
+ggheatmap(matrix(runif(360L), nrow = 20L), filling = NULL) +
+    geom_pie(aes(angle = value * 360, fill = value))
+
 ## ----eval=rlang::is_installed("ragg")-----------------------------------------
 ggheatmap(small_mat, filling = FALSE) +
-  ggrastr::rasterise(geom_tile(aes(fill = value)), dev = "ragg")
+    ggrastr::rasterise(geom_tile(aes(fill = value)), dev = "ragg")
 
 ## ----eval=rlang::is_installed("ragg")-----------------------------------------
 ggrastr::rasterise(ggheatmap(small_mat), dev = "ragg")
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-  hmanno("t") +
-  align_kmeans(3L)
+    # we set the active context to the top annotation
+    anno_top() +
+    # we split the observations into 3 groups by kmeans
+    align_kmeans(3L)
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-  theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
-  hmanno("r") +
-  align_dendro(k = 3L) +
-  geom_point(aes(color = factor(branch)))
-
-## -----------------------------------------------------------------------------
-ggheatmap(small_mat, .height = 2) +
-  scale_fill_viridis_c() +
-  hmanno("t") +
-  align_dendro()
-
-## -----------------------------------------------------------------------------
-ggheatmap(small_mat) +
-  hmanno(position = NULL, height = 2) +
-  scale_fill_viridis_c() +
-  hmanno("t") +
-  align_dendro()
+    # in the heatmap body, we set the axis text theme
+    theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
+    # we set the active context to the right annotation
+    anno_right() +
+    # in the right annotation, we add a dendrogram
+    align_dendro(k = 3L) +
+    # in the dendrogram, we add a point layer
+    geom_point(aes(color = factor(branch)))
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-  scale_fill_viridis_c() +
-  hmanno("t", size = 1) +
-  align_dendro()
+    # we set the active context to the top annotation
+    anno_top() +
+    # we split the observations into 3 groups by kmeans
+    align_kmeans(3L) +
+    # remove any active annotation
+    quad_active() +
+    # set fill color scale for the heatmap body
+    scale_fill_viridis_c()
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-  scale_fill_viridis_c() +
-  hmanno("t", size = unit(30, "mm")) +
-  align_dendro()
+    # we set the active context to the top annotation
+    quad_switch("t") +
+    # we split the observations into 3 groups by kmeans
+    align_kmeans(3L) +
+    # remove any active annotation
+    quad_switch() +
+    # set fill color scale for the heatmap body
+    scale_fill_viridis_c()
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-  scale_fill_viridis_c() +
-  hmanno("l", size = 0.2) +
-  ggalign(data = rowSums, aes(x = value), size = unit(10, "mm")) +
-  geom_bar(
-    aes(y = .y, fill = factor(.y)),
-    stat = "identity",
-    orientation = "y"
-  ) +
-  scale_fill_brewer(palette = "Set1", guide = "none")
+    # we set the active context to the top annotation
+    hmanno("t") +
+    # we split the observations into 3 groups by kmeans
+    align_kmeans(3L) +
+    # remove any active annotation
+    hmanno() +
+    # set fill color scale for the heatmap body
+    scale_fill_viridis_c()
 
-## ----fig.dim = c(12, 12)------------------------------------------------------
-heatmap_with_four_side_guides <- ggheatmap(small_mat) +
-  scale_fill_viridis_c(name = "I'm from heatmap body") +
-  theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
-  hmanno("t") +
-  align_dendro(aes(color = branch), k = 3L) +
-  scale_color_brewer(
-    name = "I'm from top annotation", palette = "Dark2",
-    guide = guide_legend(position = "right")
-  ) +
-  hmanno("l") +
-  align_dendro(aes(color = branch), k = 3L) +
-  scale_color_brewer(
-    name = "I'm from left annotation", palette = "Dark2",
-    guide = guide_legend(position = "top")
-  ) +
-  hmanno("b") +
-  align_dendro(aes(color = branch), k = 3L) +
-  scale_color_brewer(
-    name = "I'm from bottom annotation", palette = "Dark2",
-    guide = guide_legend(position = "left")
-  ) +
-  hmanno("r") +
-  align_dendro(aes(color = branch), k = 3L) +
-  scale_color_brewer(
-    name = "I'm from right annotation", palette = "Dark2",
-    guide = guide_legend(position = "bottom")
-  ) &
-  theme(plot.margin = margin())
-heatmap_with_four_side_guides
-
-## ----heatmap-guides-tb, fig.dim = c(12, 12), fig.cap="Heatmap collect top and bottom guides only"----
-heatmap_with_four_side_guides +
-  # the heatmap layout only collect guide legends in the top and bottom
-  hmanno(guides = "tb")
-
-## ----fig.dim = c(12, 12)------------------------------------------------------
-heatmap_with_four_side_guides +
-  # the left annotation won't collecte the guide legends
-  hmanno("l", guides = NULL)
-
-## ----fig.dim = c(12, 12)------------------------------------------------------
-heatmap_with_four_side_guides +
-  # the heatmap layout only collect guide legends in the top and bottom
-  hmanno(guides = "tb") +
-  # we override the layout `guides` argument and collect the right guide
-  # legend for the heatmap body
-  hmanno(free_guides = "r")
-
-## ----fig.dim = c(12, 12)------------------------------------------------------
-heatmap_with_four_side_guides +
-  # the heatmap layout only collect guide legends in the top and bottom
-  hmanno(guides = "tb") +
-  # we collect the right guide legend for the right annotation in the heatmap layout
-  hmanno("t", free_guides = "r") +
-  # we collect the left guide legend for the bottom annotation in the heatmap layout
-  hmanno("b", free_guides = "l")
+## -----------------------------------------------------------------------------
+ggheatmap(small_mat, height = 2) +
+    scale_fill_viridis_c() +
+    anno_top() +
+    align_dendro()
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-  scale_fill_viridis_c() +
-  theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
-  hmanno("t") +
-  # we won't collect any guide legends from the dendrogram plot
-  align_dendro(aes(color = branch), k = 3L, free_guides = NULL) +
-  align_dendro(aes(color = branch), k = 3L, free_guides = NULL) &
-  scale_color_brewer(
-    palette = "Dark2",
-    guide = guide_legend(position = "bottom")
-  )
+    quad_active(height = 2) +
+    scale_fill_viridis_c() +
+    anno_top() +
+    align_dendro()
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-  scale_fill_viridis_c() +
-  hmanno("t", size = unit(30, "mm")) +
-  align_dendro() +
-  scale_y_continuous(
-    expand = expansion(),
-    labels = ~ paste("very very long labels", .x)
-  ) +
-  hmanno("l", unit(20, "mm")) +
-  align_dendro()
+    scale_fill_viridis_c() +
+    anno_top(size = 1) +
+    align_dendro()
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-  scale_fill_viridis_c() +
-  hmanno("t", size = unit(30, "mm"), free_spaces = "l") +
-  align_dendro() +
-  scale_y_continuous(
-    expand = expansion(),
-    labels = ~ paste("very very long labels", .x)
-  ) +
-  hmanno("l", unit(20, "mm")) +
-  align_dendro()
-
-## ----fig.dim = c(12, 12)------------------------------------------------------
-heatmap_with_four_side_guides +
-  hmanno(guides = "tb") + # we set the `guides` argument here
-  hmanno("t", free_spaces = "r") + # we remove the right border spaces
-  hmanno("b", free_spaces = "l") # we remove the left border spaces
+    scale_fill_viridis_c() +
+    anno_top(size = unit(30, "mm")) +
+    align_dendro()
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-  scale_fill_viridis_c() +
-  hmanno("t", size = unit(30, "mm")) +
-  align_dendro(free_labs = "l") +
-  scale_y_continuous(
-    expand = expansion(),
-    labels = ~ paste("very very long labels", .x)
-  ) +
-  hmanno("l", unit(20, "mm")) +
-  align_dendro()
-
-## -----------------------------------------------------------------------------
-ggheatmap(small_mat) +
-  scale_fill_viridis_c() +
-  ylab("Heatmap title") +
-  hmanno("t", size = unit(30, "mm")) +
-  align_dendro() +
-  ylab("Annotation title")
-
-## -----------------------------------------------------------------------------
-ggheatmap(small_mat) +
-  hmanno(free_labs = NULL) +
-  scale_fill_viridis_c() +
-  ylab("Heatmap title") +
-  hmanno("t", size = unit(30, "mm")) +
-  align_dendro() +
-  ylab("Annotation title")
+    scale_fill_viridis_c() +
+    anno_left(size = 0.2) +
+    ggalign(data = rowSums, aes(x = value), size = unit(10, "mm")) +
+    geom_bar(
+        aes(y = .y, fill = factor(.y)),
+        stat = "identity", orientation = "y"
+    ) +
+    scale_fill_brewer(palette = "Set1", guide = "none")
 
 ## -----------------------------------------------------------------------------
 sessionInfo()

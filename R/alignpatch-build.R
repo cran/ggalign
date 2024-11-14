@@ -18,17 +18,17 @@ print.alignpatches <- function(x, newpage = is.null(vp), vp = NULL, ...) {
         error = function(e) {
             if (inherits(e, "simpleError") &&
                 deparse(conditionCall(e)[[1L]]) == "grid.Call") {
-                error_name <- style_cls(obj_type_friendly(x))
+                error_name <- obj_type_friendly(x)
                 if (Sys.getenv("RSTUDIO") == "1") {
                     cli::cli_abort(c(paste(
                         "The RStudio {.field Plots} window may be",
                         "too small to show", error_name
-                    ), i = "Please make the window larger."))
+                    ), i = "Please make the window larger."), parent = e)
                 } else {
                     cli::cli_abort(c(
                         "The viewport may be too small to show {error_name}.",
                         i = "Please make the window larger."
-                    ))
+                    ), parent = e)
                 }
             }
             cnd_signal(e)
@@ -56,7 +56,7 @@ ggalign_gtable.alignpatches <- function(x) {
     # ensure theme has no missing value
     theme <- .subset2(x, "theme") %||% theme_get()
 
-    # `TODO`: use `complete_theme()` from ggplot2 release
+    # `TO-DO`: use `complete_theme()` from ggplot2 release
     theme <- complete_theme(theme)
     x$theme <- theme
     table <- alignpatch(x)$patch_gtable(top_level = TRUE)

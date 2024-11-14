@@ -7,31 +7,31 @@
 patch(x, ...)
 }
 \arguments{
-\item{x}{An object to be converted into a \link[grid:grid.grob]{grob}.}
+\item{x}{An object to be converted into a \code{\link[grid:grid.grob]{grob}}.}
 
 \item{...}{Additional arguments passed to specific methods.}
 }
 \value{
-A \link[grid:grid.grob]{grob} object.
+A \code{\link[grid:grid.grob]{grob}} object.
 }
 \description{
-The \code{patch()} function is used by \code{\link[=wrap]{wrap()}} and \code{\link[=inset]{inset()}} to convert objects
-into a \link[grid:grid.grob]{grob}.
+The \code{patch()} function is used by \code{\link[=ggwrap]{ggwrap()}} and \code{\link[=inset]{inset()}} to convert
+objects into a \code{\link[grid:grid.grob]{grob}}.
 }
 \seealso{
 \itemize{
-\item \link{patch.grob} / \link{patch.gList}
-\item \link{patch.ggplot}
-\item \link{patch.patch_ggplot}
-\item \link{patch.patchwork}
-\item \link{patch.patch}
-\item \link{patch.trellis}
-\item \link{patch.formula} / \link{patch.function}
-\item \link{patch.recordedplot}
-\item \link{patch.Heatmap}
-\item \link{patch.HeatmapList}
-\item \link{patch.HeatmapAnnotation}
-\item \link{patch.pheatmap}
+\item \code{\link[=patch.grob]{patch.grob()}} / \code{\link[=patch.gList]{patch.gList()}}
+\item \code{\link[=patch.ggplot]{patch.ggplot()}}
+\item \code{\link[=patch.patch_ggplot]{patch.patch_ggplot()}}
+\item \code{\link[=patch.patchwork]{patch.patchwork()}}
+\item \code{\link[=patch.patch]{patch.patch()}}
+\item \code{\link[=patch.trellis]{patch.trellis()}}
+\item \code{\link[=patch.formula]{patch.formula()}} / \code{\link[=patch.function]{patch.function()}}
+\item \code{\link[=patch.recordedplot]{patch.recordedplot()}}
+\item \code{\link[=patch.Heatmap]{patch.Heatmap()}}
+\item \code{\link[=patch.HeatmapList]{patch.HeatmapList()}}
+\item \code{\link[=patch.HeatmapAnnotation]{patch.HeatmapAnnotation()}}
+\item \code{\link[=patch.pheatmap]{patch.pheatmap()}}
 }
 }
 \keyword{internal}

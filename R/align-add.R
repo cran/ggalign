@@ -1,5 +1,5 @@
 ####################################################################
-# Following methods are used to add elements to `Align` object
+# Following methods are used to add elements to `align` object
 align_add <- function(object, align, object_name) UseMethod("align_add")
 
 #' @importFrom ggplot2 ggplot_add
@@ -25,4 +25,13 @@ align_add.Coord <- function(object, align, object_name) {
         return(align)
     }
     NextMethod() # call default method
+}
+
+#' @export
+align_add.ggalign_option <- function(object, align, object_name) {
+    name <- ggalign_option_name(object)
+    align$controls[name] <- list(update_option(
+        object, .subset2(.subset2(align, "controls"), name), object_name
+    ))
+    align
 }

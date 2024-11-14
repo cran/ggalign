@@ -14,7 +14,11 @@
 #' @param design Specification of the location of areas in the layout. Can
 #' either be specified as a text string or by concatenating calls to
 #' [area()] together.
-#' @param guides `r rd_guides()`
+#' @param guides A string with one or more of `r oxford_and(.tlbr)` indicating
+#' which side of guide legends should be collected. Defaults to
+#' [`waiver()`][ggplot2::waiver()], which inherits from the parent layout. If
+#' there is no parent layout, or if `NULL` is provided, no guides will be
+#' collected.
 #' @inheritParams layout_annotation
 #' @return An `alignpatches` object.
 #' @seealso
@@ -56,7 +60,7 @@ align_plots <- function(..., ncol = NULL, nrow = NULL, byrow = TRUE,
     nms <- names(plots)
     if (!is.null(nms) && is.character(design)) {
         area_names <- unique(trimws(.subset2(strsplit(design, ""), 1L)))
-        area_names <- sort(setdiff(area_names, c("", "#")))
+        area_names <- sort(vec_set_difference(area_names, c("", "#")))
         if (all(nms %in% area_names)) {
             plot_list <- vector("list", length(area_names))
             names(plot_list) <- area_names
@@ -162,7 +166,6 @@ layout_design <- function(ncol = waiver(), nrow = waiver(), byrow = waiver(),
     if (!is.waive(design)) design <- as_areas(design)
     if (!identical(guides, NA) && !is.waive(guides) && !is.null(guides)) {
         assert_position(guides)
-        guides <- setup_pos(guides)
     }
     structure(list(
         ncol = ncol,
@@ -176,21 +179,28 @@ layout_design <- function(ncol = waiver(), nrow = waiver(), byrow = waiver(),
 }
 
 #' @importFrom utils modifyList
-alignpatches_update <- function(old, new) {
-    modifyList(old, new[!vapply(new, is.waive, logical(1L))], keep.null = TRUE)
+update_non_waive <- function(old, new) {
+    modifyList(old,
+        new[!vapply(new, is.waive, logical(1L), USE.NAMES = FALSE)],
+        keep.null = TRUE
+    )
 }
 
-update_layout_design <- function(old, new) {
+update_design <- function(old, new) {
     guides <- .subset2(new, "guides")
-    new <- .subset(new, setdiff(names(new), "guides"))
-    old <- alignpatches_update(old, new)
-    if (!identical(guides, NA)) old$guides <- guides
+    new$guides <- NULL # guides need special consideration
+    old <- update_non_waive(old, new)
+    if (is.null(guides) || is.waive(guides)) {
+        old["guides"] <- list(guides)
+    } else if (!identical(guides, NA)) {
+        old["guides"] <- list(setup_pos(guides))
+    }
     old
 }
 
 #' @export
 alignpatches_add.layout_design <- function(object, plot, object_name) {
-    plot$layout <- update_layout_design(.subset2(plot, "layout"), object)
+    plot$layout <- update_design(.subset2(plot, "layout"), object)
     plot
 }
 
@@ -202,11 +212,11 @@ alignpatches_add.plot_layout <- function(object, plot, object_name) {
     } else if (identical(object$guides, "auto")) {
         object$guides <- waiver()
     } else if (identical(object$guides, "collect")) {
-        object$guides <- .TLBR
+        object$guides <- "tlbr"
     } else if (identical(object$guides, "keep")) {
         object["guides"] <- list(NULL)
     }
-    plot$layout <- update_layout_design(.subset2(plot, "layout"), object)
+    plot$layout <- update_design(.subset2(plot, "layout"), object)
     plot
 }
 
@@ -237,7 +247,7 @@ layout_title <- function(title = waiver(), subtitle = waiver(),
 
 #' @export
 alignpatches_add.layout_title <- function(object, plot, object_name) {
-    plot$titles <- alignpatches_update(.subset2(plot, "titles"), object)
+    plot$titles <- update_non_waive(.subset2(plot, "titles"), object)
     plot
 }
 
@@ -278,26 +288,35 @@ alignpatches_add.layout_title <- function(object, plot, object_name) {
 #' @export
 layout_annotation <- function(theme = waiver(), ...) {
     rlang::check_dots_empty()
-    if (!is.null(theme) && !is.waive(theme)) assert_s3_class(theme, "theme")
+    if (!is.waive(theme)) assert_s3_class(theme, "theme", allow_null = TRUE)
     structure(
         list(annotation = list(), theme = theme),
         class = c("layout_annotation", "plot_annotation")
     )
 }
 
-update_layout_theme <- function(old, new) {
+# Used by add `layout_annotation` to the `Layout` objects
+update_layout_annotation <- function(object, layout, object_name) {
+    layout@annotation <- update_non_waive(
+        layout@annotation, .subset2(object, "annotation")
+    )
+    layout@theme <- update_theme(layout@theme, .subset2(object, "theme"))
+    layout
+}
+
+update_theme <- function(old, new) {
     if (is.waive(new)) return(old) # styler: off
     if (is.null(old) || is.null(new)) return(new) # styler: off
-    ggfun("add_theme")(old, new)
+    old + new
 }
 
 #' @export
 alignpatches_add.layout_annotation <- function(object, plot, object_name) {
-    plot$annotation <- alignpatches_update(
+    plot$annotation <- update_non_waive(
         .subset2(plot, "annotation"),
         .subset2(object, "annotation")
     )
-    plot$theme <- update_layout_theme(
+    plot$theme <- update_theme(
         .subset2(plot, "theme"),
         .subset2(object, "theme")
     )
@@ -306,10 +325,13 @@ alignpatches_add.layout_annotation <- function(object, plot, object_name) {
 
 #' @export
 alignpatches_add.plot_annotation <- function(object, plot, object_name) {
-    plot$titles <- alignpatches_update(
+    plot$titles <- update_non_waive(
         .subset2(plot, "titles"),
         .subset(object, names(layout_title()))
     )
-    plot$theme <- update_layout_theme(.subset2(plot, "theme"), theme)
+    plot$theme <- update_theme(
+        .subset2(plot, "theme"),
+        .subset2(object, "theme")
+    )
     plot
 }

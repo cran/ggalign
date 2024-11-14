@@ -7,17 +7,30 @@
 \method{patch}{pheatmap}(x, ...)
 }
 \arguments{
-\item{x}{An object to be converted into a \link[grid:grid.grob]{grob}.}
+\item{x}{An object to be converted into a \code{\link[grid:grid.grob]{grob}}.}
 
 \item{...}{Not used currently.}
 }
 \value{
-A \link[grid:grid.grob]{grob} object.
+A \code{\link[grid:grid.grob]{grob}} object.
 }
 \description{
-The \code{patch()} function is used by \code{\link[=wrap]{wrap()}} and \code{\link[=inset]{inset()}} to convert objects
-into a \link[grid:grid.grob]{grob}.
+The \code{patch()} function is used by \code{\link[=ggwrap]{ggwrap()}} and \code{\link[=inset]{inset()}} to convert
+objects into a \code{\link[grid:grid.grob]{grob}}.
 }
 \seealso{
-\link[pheatmap:pheatmap]{pheatmap}
+\code{\link[pheatmap:pheatmap]{pheatmap()}}
+
+Other patch methods: 
+\code{\link{patch.Heatmap}()},
+\code{\link{patch.alignpatches}()},
+\code{\link{patch.formula}()},
+\code{\link{patch.ggplot}()},
+\code{\link{patch.grob}()},
+\code{\link{patch.patch}()},
+\code{\link{patch.patch_ggplot}()},
+\code{\link{patch.patchwork}()},
+\code{\link{patch.recordedplot}()},
+\code{\link{patch.trellis}()}
 }
+\concept{patch methods}

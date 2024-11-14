@@ -1,6 +1,6 @@
 #' Create a ggplot inset
 #'
-#' @inheritParams wrap
+#' @inheritParams ggwrap
 #' @return A `patch_inset` object, which can be added in ggplot.
 #' @inherit patch seealso
 #' @examples
@@ -28,7 +28,7 @@ make_inset <- function(plot, ..., align, on_top, clip, vp,
     assert_bool(on_top, call = call)
     align <- arg_match0(align, c("panel", "plot", "full"), error_call = call)
     assert_bool(clip, call = call)
-    assert_s3_class(vp, "viewport", null_ok = TRUE, call = call)
+    assert_s3_class(vp, "viewport", allow_null = TRUE, call = call)
     if (!is.grob(grob <- patch(x = plot, ...))) {
         cli::cli_abort("{.fn patch} must return a {.cls grob}", call = call)
     }
@@ -48,28 +48,31 @@ ggplot_add.patch_inset <- function(object, plot, object_name) {
 ############################################################
 #' Convert Object into a Grob
 #'
-#' The `patch()` function is used by [wrap()] and [inset()] to convert objects
-#' into a [grob][grid::grob].
+#' The `patch()` function is used by [`ggwrap()`] and [inset()] to convert
+#' objects into a [`grob`][grid::grob].
 #'
-#' @param x An object to be converted into a [grob][grid::grob].
+#' @param x An object to be converted into a [`grob`][grid::grob].
 #' @param ... Additional arguments passed to specific methods.
-#' @return A [grob][grid::grob] object.
+#' @return A [`grob`][grid::grob] object.
 #' @seealso
-#' - [patch.grob] / [patch.gList]
-#' - [patch.ggplot]
-#' - [patch.patch_ggplot]
-#' - [patch.patchwork]
-#' - [patch.patch]
-#' - [patch.trellis]
-#' - [patch.formula] / [patch.function]
-#' - [patch.recordedplot]
-#' - [patch.Heatmap]
-#' - [patch.HeatmapList]
-#' - [patch.HeatmapAnnotation]
-#' - [patch.pheatmap]
+#' - [`patch.grob()`] / [`patch.gList()`]
+#' - [`patch.ggplot()`]
+#' - [`patch.patch_ggplot()`]
+#' - [`patch.patchwork()`]
+#' - [`patch.patch()`]
+#' - [`patch.trellis()`]
+#' - [`patch.formula()`] / [`patch.function()`]
+#' - [`patch.recordedplot()`]
+#' - [`patch.Heatmap()`]
+#' - [`patch.HeatmapList()`]
+#' - [`patch.HeatmapAnnotation()`]
+#' - [`patch.pheatmap()`]
 #' @export
 #' @keywords internal
-patch <- function(x, ...) UseMethod("patch")
+patch <- function(x, ...) {
+    rlang::check_dots_used()
+    UseMethod("patch")
+}
 
 # Following methods much are copied from `cowplot` or `ggplotify`
 #' @export
@@ -80,16 +83,15 @@ patch.default <- function(x, ...) {
 #' @inherit patch title description return
 #' @inheritParams patch
 #' @param ... Not used currently.
+#' @family patch methods
 #' @export
 patch.grob <- function(x, ...) {
-    rlang::check_dots_empty()
     x
 }
 
 #' @export
 #' @rdname patch.grob
 patch.gList <- function(x, ...) {
-    rlang::check_dots_empty()
     # gLists need to be wrapped in a grob tree
     grid::grobTree(plot)
 }
@@ -97,53 +99,54 @@ patch.gList <- function(x, ...) {
 #' @importFrom ggplot2 ggplotGrob
 #' @inherit patch.grob
 #' @seealso [ggplot][ggplot2::ggplot]
+#' @family patch methods
 #' @export
 patch.ggplot <- function(x, ...) {
-    rlang::check_dots_empty()
     ggplotGrob(x)
 }
 
 #' @inherit patch.grob
 #' @seealso
-#' - [patch_titles]
-#' - [inset]
-#' - [wrap]
+#' - [`patch_titles()`]
+#' - [`inset()`]
+#' - [`ggwrap()`]
+#' @family patch methods
 #' @export
 patch.patch_ggplot <- function(x, ...) {
-    rlang::check_dots_empty()
     ggalignGrob(x)
 }
 
 #' @inherit patch.grob
-#' @seealso [alignpatches][align_plots]
+#' @seealso [`alignpatches`][align_plots]
+#' @family patch methods
 #' @export
 patch.alignpatches <- function(x, ...) {
-    rlang::check_dots_empty()
     ggalignGrob(x)
 }
 
 #' @inherit patch.grob
-#' @seealso [patchwork][patchwork::patchworkGrob]
+#' @seealso [`patchwork`][patchwork::patchworkGrob]
+#' @family patch methods
 #' @export
 patch.patchwork <- function(x, ...) {
     rlang::check_installed("patchwork", "to make grob from patchwork")
-    rlang::check_dots_empty()
     patchwork::patchworkGrob(x)
 }
 
 #' @inherit patch.grob
-#' @seealso [patch][patchwork::patchGrob]
+#' @seealso [`patch`][patchwork::patchGrob]
+#' @family patch methods
 #' @export
 patch.patch <- function(x, ...) {
     rlang::check_installed("patchwork", "to make grob from patch")
-    rlang::check_dots_empty()
     patchwork::patchGrob(x)
 }
 
 #' @inherit patch.grob
 #' @param ... Graphical Parameters passed on to [par()][graphics::par].
 #' @inheritParams gridGraphics::echoGrob
-#' @seealso [plot]
+#' @seealso [`plot()`]
+#' @family patch methods
 #' @export
 patch.formula <- function(x, ..., device = NULL, name = NULL) {
     rlang::check_installed("gridGraphics", "to make grob from base plot")
@@ -181,11 +184,11 @@ patch.function <- function(x, ..., device = NULL, name = NULL) {
 
 #' @inherit patch.grob
 #' @inheritParams gridGraphics::echoGrob
-#' @seealso [recordPlot][grDevices::recordPlot]
+#' @seealso [`recordPlot()`][grDevices::recordPlot]
+#' @family patch methods
 #' @export
 patch.recordedplot <- function(x, ..., device = NULL) {
     rlang::check_installed("gridGraphics", "to make grob from recordedplot")
-    rlang::check_dots_empty()
     gridGraphics::echoGrob(x, device = device %||% offscreen)
 }
 
@@ -202,7 +205,8 @@ offscreen <- function(width, height) {
 #' @inherit patch.grob
 #' @inheritDotParams grid::grid.grabExpr -expr -device
 #' @inheritParams grid::grid.grabExpr
-#' @seealso [trellis][lattice::trellis.object]
+#' @seealso [`trellis`][lattice::trellis.object]
+#' @family patch methods
 #' @export
 patch.trellis <- function(x, ..., device = NULL) {
     grid::grid.grabExpr(expr = print(x), ..., device = device %||% offscreen)
@@ -212,8 +216,9 @@ patch.trellis <- function(x, ..., device = NULL) {
 #' @param ... Additional arguments passed to [draw()][ComplexHeatmap::draw].
 #' @inheritParams grid::grid.grabExpr
 #' @seealso
-#'  - [Heatmap][ComplexHeatmap::Heatmap]
-#'  - [HeatmapAnnotation][ComplexHeatmap::HeatmapAnnotation]
+#'  - [`Heatmap()`][ComplexHeatmap::Heatmap]
+#'  - [`HeatmapAnnotation()`][ComplexHeatmap::HeatmapAnnotation]
+#' @family patch methods
 #' @importFrom utils getFromNamespace
 #' @export
 patch.Heatmap <- function(x, ..., device = NULL) {
@@ -237,9 +242,7 @@ patch.HeatmapList <- patch.Heatmap
 patch.HeatmapAnnotation <- patch.HeatmapList
 
 #' @inherit patch.grob
-#' @seealso [pheatmap][pheatmap::pheatmap]
+#' @seealso [`pheatmap()`][pheatmap::pheatmap]
+#' @family patch methods
 #' @export
-#' @rdname patch.pheatmap
-patch.pheatmap <- function(x, ...) {
-    .subset2(x, "gtable")
-}
+patch.pheatmap <- function(x, ...) .subset2(x, "gtable")

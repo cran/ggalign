@@ -16,17 +16,18 @@ colnames(small_mat) <- paste0("column", seq_len(ncol(small_mat)))
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
     scale_fill_viridis_c(guide = "none") +
-    hmanno("t") +
+    anno_top() +
     ggalign(data = rowSums) +
     geom_point(aes(y = value))
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-    scale_fill_viridis_c(guide = "none") +
-    hmanno("t") +
-    align_kmeans(3L) +
-    ggalign(plot_data = function(data) subset(data, .panel == 1L)) +
-    geom_bar(aes(y = value, fill = .row_names), stat = "identity")
+    anno_top(size = unit(1, "cm")) +
+    align_kmeans(centers = 3L) +
+    ggalign(data = NULL) +
+    plot_data(~ aggregate(.x ~ .panel, .x, FUN = median)) +
+    geom_tile(aes(y = 1L, fill = .panel, color = .panel)) +
+    geom_text(aes(y = 1L, label = .panel))
 
 ## ----fig.dim = c(5, 10)-------------------------------------------------------
 set.seed(1L)
@@ -35,9 +36,9 @@ split <- sample(letters[1:2], 50L, replace = TRUE)
 ggheatmap(v) +
     scale_fill_viridis_c() +
     theme(strip.text = element_text(), strip.background = element_rect()) +
-    hmanno("r") +
+    anno_right() +
     align_group(split) +
-    hmanno("t", size = 0.5) +
+    anno_top(size = 0.5) +
     ggalign(limits = FALSE) +
     geom_boxplot(aes(.extra_panel, value, fill = .extra_panel),
         # here, we use `print()` to show the underlying data
@@ -51,10 +52,10 @@ ggheatmap(v) +
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
     theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
-    hmanno("t") +
+    anno_top() +
     align_dendro(aes(color = branch), k = 3L) +
     scale_color_brewer(palette = "Dark2") +
-    hmanno("r", size = 0.5) +
+    anno_right(size = 0.5) +
     ggalign(limits = FALSE) +
     geom_boxplot(aes(y = .extra_panel, x = value, fill = factor(.extra_panel))) +
     scale_fill_brewer(palette = "Dark2", name = "branch")
@@ -63,11 +64,11 @@ ggheatmap(small_mat) +
 ggheatmap(small_mat) +
     patch_titles(left = "left patch title", bottom = "bottom patch title") +
     theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
-    hmanno("t") +
+    anno_top() +
     align_dendro(aes(color = branch), k = 3L) +
     scale_color_brewer(palette = "Dark2") +
     patch_titles(top = "top patch title") +
-    hmanno("r", size = 0.5) +
+    anno_right(size = 0.5) +
     ggalign(limits = FALSE) +
     geom_boxplot(aes(y = .extra_panel, x = value, fill = factor(.extra_panel))) +
     scale_fill_brewer(palette = "Dark2", name = "branch") +
@@ -75,16 +76,51 @@ ggheatmap(small_mat) +
 
 ## -----------------------------------------------------------------------------
 ggheatmap(small_mat) +
-    hmanno("t", size = unit(1, "cm")) +
-    align_kmeans(centers = 3L) +
-    ggpanel() +
-    geom_tile(aes(y = 1L, fill = .panel, color = .panel),
-        width = 1L, height = 1L
+    anno_top() +
+    ggfree(aes(wt, mpg), data = mtcars) +
+    geom_point()
+
+## -----------------------------------------------------------------------------
+ggside(mpg, aes(displ, hwy, colour = class)) -
+    geom_point(size = 2) +
+    anno_top(size = 0.3) +
+    ggfree() +
+    geom_density(aes(displ, y = after_stat(density), colour = class), position = "stack") +
+    anno_right(size = 0.3) +
+    ggfree() +
+    geom_density(aes(x = after_stat(density), hwy, colour = class),
+        position = "stack"
     ) +
-    geom_text(aes(y = 1L, label = .panel),
-        data = function(data) {
-            aggregate(.x ~ .panel, data, FUN = median)
-        }
+    theme(axis.text.x = element_text(angle = 90, vjust = .5))
+
+## -----------------------------------------------------------------------------
+ggheatmap(small_mat) +
+    anno_top() +
+    ggfree(data = ggplot(mtcars, aes(wt, mpg))) +
+    geom_point()
+
+## -----------------------------------------------------------------------------
+ggheatmap(small_mat) +
+    anno_top() +
+    ggplot(mtcars, aes(wt, mpg)) +
+    geom_point()
+
+## -----------------------------------------------------------------------------
+library(grid)
+ggheatmap(small_mat) +
+    anno_top() +
+    # `ggwrap()` will create a `ggplot` object, we use `ggfree` to add it into the layout
+    ggfree(data = ggwrap(rectGrob(gp = gpar(fill = "goldenrod")), align = "full"))
+
+## -----------------------------------------------------------------------------
+ggheatmap(small_mat) +
+    anno_top() +
+    ggfree(data = ggwrap(rectGrob(gp = gpar(fill = "goldenrod")), align = "full")) +
+    # we can then add any inset grobs (the same as ggwrap, it can take any objects
+    # which can be converted to a `grob`)
+    inset(rectGrob(gp = gpar(fill = "steelblue")), align = "panel") +
+    inset(textGrob("Here are some text", gp = gpar(color = "black")),
+        align = "panel"
     )
 
 ## -----------------------------------------------------------------------------

@@ -4,139 +4,129 @@
 \name{align}
 \alias{align}
 \alias{Align}
-\title{Create a new \code{Align} object}
+\title{Create a New \code{align} Object}
 \usage{
 align(
   align_class,
   params,
   data,
   size = NULL,
-  free_guides = waiver(),
-  free_spaces = waiver(),
-  plot_data = waiver(),
-  theme = waiver(),
-  free_labs = waiver(),
+  controls = NULL,
   limits = TRUE,
   facet = TRUE,
-  set_context = TRUE,
-  order = NULL,
-  name = NULL,
+  no_axes = NULL,
+  active = NULL,
+  free_guides = deprecated(),
+  free_spaces = deprecated(),
+  plot_data = deprecated(),
+  theme = deprecated(),
+  free_labs = deprecated(),
   check.param = TRUE,
   call = caller_call()
 )
 }
 \arguments{
-\item{data}{A matrix, data frame, or a simple vector. If an atomic vector is
-provided, it will be converted into a one-column matrix. When \code{data = NULL},
-the internal \code{layout} data will be used by default. Additionally, \code{data} can
-be a function (including purrr-like lambdas), which will be applied to the
-\code{layout} data.
+\item{align_class}{A \code{Align} object.}
 
-It is important to note that we consider the \code{rows} as the observations. It
-means the \code{NROW(data)} must return the same number with the specific \code{layout}
-axis (meaning the x-axis for vertical stack layout, or y-axis for horizontal
-stack layout).
+\item{params}{A list of parameters for \code{align_class}.}
+
+\item{data}{Options for \code{data}:
 \itemize{
-\item \code{heatmap_layout()}: for column annotation, the \code{layout} data will be
-transposed before using (If data is a \code{function}, it will be applied with
-the transposed matrix). This is necessary because column annotation uses
-heatmap columns as observations, but we need rows.
-\item \code{stack_layout()}: the \code{layout} data will be used as it is since we place
-all plots along a single axis.
+\item A matrix, data frame, or atomic vector.
+\item \code{\link[ggplot2:waiver]{waiver()}}: Uses the \verb{layout matrix}.
+\item \code{NULL}: No data is set.
+\item A \code{function} (including purrr-like lambda syntax) applied to the layout
+\code{matrix}.
 }}
 
-\item{size}{Plot size, can be an \link[grid:unit]{unit} object.}
+\item{size}{The relative size of the plot, can be specified as a
+\code{\link[grid:unit]{unit}}.}
 
-\item{free_guides}{Override the \code{guides} argument specified in the layout for
-a plot. Options include:
+\item{controls}{Options for \code{controls}:
 \itemize{
-\item \code{\link[ggplot2:waiver]{waiver()}}: inherits behavior from the layout.
-\item \code{NULL}: no guide legends will be collected for the plot.
-\item A string containing one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"} indicates which side of guide legends should be collected for the plot..
+\item \code{NULL}: Used when \verb{align_*()} functions do not add a plot.
+\item \code{\link[ggplot2:waiver]{waiver()}}: Try to infer \code{controls} based on \code{data}.
 }}
 
-\item{free_spaces}{A string with one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"}
-indicating which border spaces should be removed. Defaults to
-\code{\link[ggplot2:waiver]{waiver()}}, which inherits from the parent layout. If no
-parent, the default is \code{NULL}, meaning no spaces are removed.}
+\item{limits}{Logical; if \code{TRUE}, sets layout limits for the plot.}
 
-\item{plot_data}{A function to transform plot data before rendering. Defaults
-to \code{\link[ggplot2:waiver]{waiver()}}, which inherits from the parent layout. If
-no parent layout, the default is \code{NULL}, meaning the data won't be modified.
+\item{facet}{Logical; if \code{TRUE}, applies facets to the layout. If \code{FALSE},
+\code{limits} will also be set to \code{FALSE}.}
 
-Used to modify the data after layout has been created, which should be a data
-frame, but before the data is handled of to the ggplot2 for rendering. Use
-this hook if the you needs change the default data for all \code{geoms}.}
+\item{no_axes}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Logical; if \code{TRUE},
+removes axes elements for the alignment axis using \code{\link[=theme_no_axes]{theme_no_axes()}}. By
+default, will controled by the option-
+\code{"ggalign.align_no_axes"}.}
 
-\item{theme}{Default plot theme: One of:
-\itemize{
-\item \code{\link[ggplot2:waiver]{waiver()}}: will inherit from the parent layout.
-\item \code{NULL}: Use the \link[=theme_ggalign]{default theme}.
-\item \code{\link[ggplot2:theme]{theme()}}: will be added with the parent layout theme.
-}
+\item{active}{A \code{\link[=active]{active()}} object that defines the context settings when
+added to a layout.}
 
-\verb{Note:} The axis title and labels parallel to the layout axis will always be
-removed by default. For vertical stack layouts, this refers to the \code{x-axis},
-and for horizontal stack layouts, this refers to the \code{y-axis}. If you want to
-display the axis title or labels, you should manually add
-\link[ggplot2:theme]{theme()} elements for the parallel axis title or labels.}
+\item{free_guides}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#superseded}{\figure{lifecycle-superseded.svg}{options: alt='[Superseded]'}}}{\strong{[Superseded]}} Please use
+\code{\link[=plot_align]{plot_align()}} function instead.}
 
-\item{free_labs}{A string with one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"} indicating
-which axis titles should be free from alignment. Defaults to
-\code{\link[ggplot2:waiver]{waiver()}}, which inherits from the parent layout. If no
-parent layout, no axis titles will be aligned. If \code{NULL}, all axis titles
-will be aligned.}
+\item{free_spaces}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
+\code{\link[=plot_align]{plot_align()}} function instead.}
 
-\item{limits}{A boolean value indicates whether to set the layout limtis for
-the plot.}
+\item{plot_data}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
+\code{\link[=plot_data]{plot_data()}} function instead.}
 
-\item{facet}{A boolean value indicates whether to set the layout facet for
-the plot. If this is \code{FALSE}, \code{limits} will always be \code{FALSE} too.}
+\item{theme}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
+\code{\link[=plot_theme]{plot_theme()}} function instead.}
 
-\item{set_context}{A single boolean value indicates whether to set the active
-context to current plot. If \code{TRUE}, all subsequent ggplot elements will be
-added into this plot.}
+\item{free_labs}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
+\code{\link[=plot_align]{plot_align()}} function instead.}
 
-\item{order}{An single integer for the plot area order.}
+\item{check.param}{Logical; if \code{TRUE}, checks parameters and provides
+warnings as necessary.}
 
-\item{name}{A string of the plot name. Used to switch the active context in
-\code{\link[=hmanno]{hmanno()}} or \code{\link[=stack_active]{stack_active()}}.}
-
-\item{check.param}{A single boolean value indicates whether to check the
-supplied parameters and warn.}
-
-\item{call}{The \code{call} used to construct the \code{Align} for reporting messages.}
+\item{call}{The \code{call} used to construct the \code{Align} object, for reporting
+messages.}
 }
 \value{
-A new \code{Align} object.
+A new \code{align} object.
 }
 \description{
-\code{Align} object will act with the \code{layout} object, reorder or split the
-observations, some of them can also add plot components into the \code{layout}
-object.
-}
-\section{Align}{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
-Each of the \verb{Align*} objects is just a \link[ggplot2:ggproto]{ggproto()} object,
-descended from the top-level \code{Align}, and each implements various
+An \code{align} object interacts with the \code{layout} object to reorder or split
+observations and, in some cases, add plot components to the \code{layout}.
+}
+\details{
+Each of the \verb{Align*} objects is just a \code{\link[ggplot2:ggproto]{ggproto()}}
+object, descended from the top-level \code{Align}, and each implements various
 methods and fields.
 
 To create a new type of \verb{Align*} object, you typically will want to
 override one or more of the following:
 \itemize{
-\item \code{setup_params}: Prepare parameter or check parameters used by this
-annotation.
-\item \code{setup_data}: Prepare data used by this annotation.
+\item \code{setup_params}: Prepare parameter or check parameters used by this plot.
+\item \code{setup_data}: Prepare data used by this plot.
 \item \code{compute}: A method used to compute statistics.
-\item \code{layout}: A method used to group heamap rows/columns into panel or
-reorder heamtap rows/columns.
+\item \code{layout}: A method used to group observations into panel or reorder
+observations.
 \item \code{draw}: A method used to draw the plot. Must return a \code{ggplot} object.
+}
+}
+\section{Axis Alignment for Observations}{
+
+It is important to note that we consider rows as observations, meaning
+\code{vec_size(data)}/\code{NROW(data)} must match the number of observations along the
+axis used for alignment (x-axis for a vertical stack layout, y-axis for a
+horizontal stack layout).
+\itemize{
+\item \code{\link[=quad_layout]{quad_layout()}}/\code{\link[=ggheatmap]{ggheatmap()}}: For column annotation, the layout
+\code{matrix} will be transposed before use (if \code{data} is a function, it is
+applied to the transposed matrix), as column annotation uses columns as
+observations but alignment requires rows.
+\item \code{\link[=stack_layout]{stack_layout()}}: The layout matrix is used as is, aligning all plots
+along a single axis.
 }
 }
 
 \examples{
 align_gg()
 align_dendro()
+
 }
 \keyword{datasets}
 \keyword{internal}

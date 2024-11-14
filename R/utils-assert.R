@@ -59,7 +59,7 @@ assert_position <- function(position, arg = caller_arg(position),
     if (grepl("[^tlbr]", position)) {
         cli::cli_abort(sprintf(
             "{.arg {arg}} can only contain the %s characters",
-            oxford_comma(paste0("\"", .tlbr, "\""))
+            oxford_and(.tlbr)
         ), call = call)
     }
 }
@@ -67,28 +67,31 @@ assert_position <- function(position, arg = caller_arg(position),
 assert_layout_position <- function(position, arg = caller_arg(position),
                                    call = caller_call()) {
     if (!is.waive(position) && !is.null(position)) {
-        assert_position(position, call = call)
+        assert_position(position, arg = arg, call = call)
     }
 }
 
+#' @importFrom grid is.unit
 check_stack_sizes <- function(sizes, arg = caller_arg(sizes),
                               call = caller_call()) {
-    l <- length(sizes)
-    if (!(l == 1L || l == 3L) ||
-        !(all(is.na(sizes)) || is.numeric(sizes) || is.unit(sizes))) {
-        cli::cli_abort(paste(
-            "{.arg {arg}} must be",
-            "a numeric or unit object of length 3"
-        ), call = call)
+    if (!(all(is.na(sizes)) || is.numeric(sizes) || is.unit(sizes))) {
+        cli::cli_abort(
+            "{.arg {arg}} must be a numeric or {.cls unit} object",
+            call = call
+        )
     }
-    if (l == 1L) sizes <- rep(sizes, length.out = 3L)
+    if (length(sizes) == 1L) {
+        sizes <- rep(sizes, length.out = 3L)
+    } else {
+        vec_check_size(sizes, size = 3L, arg = arg, call = call)
+    }
     if (!is.unit(sizes)) sizes <- unit(sizes, "null")
     sizes
 }
 
 check_size <- function(size, arg = caller_arg(size), call = caller_call()) {
-    if (!is_scalar(size) ||
-        !(is.na(size) || is.numeric(size) || is.unit(size))) {
+    vec_check_size(size, size = 1L, arg = arg, call = call)
+    if (!(is.na(size) || is.numeric(size) || is.unit(size))) {
         cli::cli_abort(
             "{.arg {arg}} must be a single numeric or unit object",
             call = call
@@ -98,20 +101,18 @@ check_size <- function(size, arg = caller_arg(size), call = caller_call()) {
     size
 }
 
-check_plot_data <- function(plot_data, arg = caller_arg(plot_data),
+check_plot_data <- function(data, arg = caller_arg(data),
                             call = caller_call()) {
-    plot_data <- allow_lambda(plot_data)
-    if (!is.waive(plot_data) && !is.null(plot_data) &&
-        !is.function(plot_data)) {
+    data <- allow_lambda(data)
+    if (!is.waive(data) && !is.null(data) && !is.function(data)) {
         cli::cli_abort(paste(
             "{.arg {arg}} must be a function,",
             "{.code NULL} or {.fn waiver}"
         ), call = call)
     }
-    plot_data
+    data
 }
 
-#' @importFrom vctrs vec_cast
 check_stack_context <- function(what, arg = caller_arg(what),
                                 call = caller_call()) {
     if (is.null(what)) return(what) # styler: off
@@ -164,5 +165,21 @@ assert_facet <- function(x, arg = caller_arg(x), call = caller_call()) {
             "Unknown facet: {.obj_type_friendly {x}}.",
             i = "Overriding facetted scales may be unstable."
         ))
+    }
+}
+
+assert_align <- function(x, arg = caller_arg(x), call = caller_call()) {
+    if (!inherits(x, "plot_align")) {
+        cli::cli_abort("{.arg {arg}} must be created by {.fn plot_align}",
+            call = call
+        )
+    }
+}
+
+assert_active <- function(x, arg = caller_arg(x), call = caller_call()) {
+    if (!is.null(x) && !inherits(x, "ggalign_active")) {
+        cli::cli_abort("{.arg {arg}} must be created by {.fn context}",
+            call = call
+        )
     }
 }

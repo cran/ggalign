@@ -3,83 +3,87 @@
 \name{heatmap_layout}
 \alias{heatmap_layout}
 \alias{ggheatmap}
-\title{Arrange plots in a Heatmap}
+\title{Arrange Plots in a Heatmap}
 \usage{
 heatmap_layout(
-  data,
+  data = NULL,
   mapping = aes(),
   ...,
-  filling = TRUE,
-  .width = NA,
-  .height = NA,
-  guides = waiver(),
+  width = NA,
+  height = NA,
+  filling = waiver(),
   theme = NULL,
-  set_context = TRUE,
-  order = NULL,
-  name = NULL
-)
-
-ggheatmap(
-  data,
-  mapping = aes(),
-  ...,
-  filling = TRUE,
-  .width = NA,
-  .height = NA,
-  guides = waiver(),
-  theme = NULL,
-  set_context = TRUE,
-  order = NULL,
-  name = NULL
+  active = NULL,
+  set_context = deprecated(),
+  order = deprecated(),
+  name = deprecated(),
+  guides = deprecated()
 )
 }
 \arguments{
-\item{data}{A numeric or character vector, a data frame, and any other data
-which can be converted into a matrix. Simple vector will be converted into a
-one column matrix.}
+\item{data}{Default dataset to use for the layout. If not specified, it must be supplied in each plot added to the layout. By default, it will try to inherit from parent layout. If not already a matrix, will be converted
+to one by \code{\link[=fortify_matrix]{fortify_matrix()}}.}
 
-\item{mapping}{Default list of aesthetic mappings to use for plot. In
-addition, we will always add mapping \code{aes(.data$.x, .data$.y)}.}
+\item{mapping}{Default list of aesthetic mappings to use for plot.
+If not specified, must be supplied in each layer added to the plot.}
 
-\item{...}{Additional arguments passed to \link[ggplot2:geom_tile]{geom_tile}.
-Only used when \code{filling = TRUE}.}
+\item{...}{Additional arguments passed to \code{\link[=fortify_matrix]{fortify_matrix()}}.}
 
-\item{filling}{A boolean value indicating whether to fill the heatmap. If you
-wish to customize the filling style, set this to \code{FALSE}.
+\item{width, height}{The relative width/height of the main plot, can be a
+\code{\link[grid:unit]{unit}} object.}
 
-By default, the classic heatmap colour scheme
+\item{filling}{A single string of \code{"raster"} or \code{"tile"} to
+indicate the filling style. By default, \code{waiver()} is used, which means that
+if the input matrix has more than 20,000 cells (\code{nrow * ncol > 20000}),
+\code{\link[ggplot2:geom_tile]{geom_raster()}} will be used for performance
+efficiency; for smaller matrices, \code{\link[ggplot2:geom_tile]{geom_tile()}} will be
+used. To customize the filling style, set this to \code{NULL}.
+
+For backward compatibility, a single boolean value is acceptable: \code{TRUE}
+means \code{waiver()}, and \code{FALSE} means \code{NULL}.
+
+By default, the classic heatmap color scheme
 \code{\link[ggplot2:scale_gradient]{scale_fill_gradient2(low = "blue", high = "red")}}
 is utilized for continuous values.
-You can use the option
+
+You can use the options
 \code{"ggalign.heatmap_continuous_fill"} or
 \code{"ggalign.heatmap_discrete_fill"} to modify the
-default heatmap body fill color scale. See
+default heatmap body filling color scale. See
 \code{\link[ggplot2:scale_colour_continuous]{scale_fill_continuous()}} or
-\code{\link[ggplot2:scale_colour_discrete]{scale_fill_discrete()}} for option setting
-details.}
-
-\item{.width, .height}{Heatmap body width/height, can be a \link[grid:unit]{unit} object.}
-
-\item{guides}{A string containing one or more of \code{"t"}, \code{"l"}, \code{"b"}, and \code{"r"} indicates which side of guide legends should be collected. If \code{NULL}, no guide legends will be collected. If \code{\link[ggplot2:waiver]{waiver()}}, it will inherit from the parent layout}
+\code{\link[ggplot2:scale_colour_discrete]{scale_fill_discrete()}} for details on
+option settings.}
 
 \item{theme}{A \code{\link[ggplot2:theme]{theme()}} used to render the \code{guides},
 \code{title}, \code{subtitle}, \code{caption}, \code{margins}, \code{patch.title}, \code{panel.border}, and
 \code{background}. If \code{NULL} (default), will inherit from the parent \code{layout}.}
 
-\item{set_context}{A single boolean value indicates whether to set the active
-context to current plot. If \code{TRUE}, all subsequent ggplot elements will be
-added into this plot.}
+\item{active}{A \code{\link[=active]{active()}} object that defines the context settings when
+added to a layout.}
 
-\item{order}{An single integer for the plot area order.}
+\item{set_context}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active}
+argument instead.}
 
-\item{name}{A string of the plot name. Used to switch the active context in
-\code{\link[=hmanno]{hmanno()}} or \code{\link[=stack_active]{stack_active()}}.}
+\item{order}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active} argument
+instead.}
+
+\item{name}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active} argument
+instead.}
+
+\item{guides}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
+\code{\link[=plot_align]{plot_align()}} function instead.}
 }
 \value{
 A \code{HeatmapLayout} object.
 }
 \description{
-\code{ggheatmap} is an alias of \code{heatmap_layout}.
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
+
+\code{heatmap_layout} is a specialized version of \code{\link[=quad_alignb]{quad_alignb()}}, which
+simplifies the creation of heatmap plots by integrating essential elements
+for a standard heatmap layout, ensuring that the appropriate data mapping and
+visualization layers are automatically applied. \code{ggheatmap} is an alias for
+\code{heatmap_layout}.
 }
 \section{ggplot2 specification}{
 

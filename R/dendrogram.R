@@ -5,16 +5,16 @@
 #' `"euclidean"`, `"maximum"`, `"manhattan"`, `"canberra"`, `"binary"` or
 #' `"minkowski"`.  Correlation coefficient can be also used, including
 #' `"pearson"`, `"spearman"` or `"kendall"`. In this way, `1 - cor` will be used
-#' as the distance. In addition, you can also provide a [dist][stats::dist]
-#' object directly or a function return a [dist][stats::dist] object. Use
+#' as the distance. In addition, you can also provide a [`dist`][stats::dist]
+#' object directly or a function return a [`dist`][stats::dist] object. Use
 #' `NULL`, if you don't want to calculate the distance.
 #' @param method A string of the agglomeration method to be used. This should be
 #' (an unambiguous abbreviation of) one of `"ward.D"`, `"ward.D2"`, `"single"`,
 #' `"complete"`, `"average"` (= UPGMA), `"mcquitty"` (= WPGMA), `"median"` (=
 #' WPGMC) or `"centroid"` (= UPGMC). You can also provide a function which
-#' accepts the distance and returns a [hclust][stats::hclust] object.
-#' Alternative, you can supply an object which can be coerced to
-#' [hclust][stats::hclust].
+#' accepts the calculated distance (or the input matrix if `distance` is `NULL`)
+#' and returns a [`hclust`][stats::hclust] object. Alternative, you can supply
+#' an object which can be coerced to [`hclust`][stats::hclust].
 #' @param use_missing An optional character string giving a method for computing
 #' covariances in the presence of missing values. This must be (an abbreviation
 #' of) one of the strings `"everything"`, `"all.obs"`, `"complete.obs"`,
@@ -31,7 +31,6 @@
 #' @export
 hclust2 <- function(matrix, distance = "euclidean", method = "complete",
                     use_missing = "pairwise.complete.obs") {
-    call <- current_call() # used for message
     method <- allow_lambda(method)
     if (!is_string(method) && !is.function(method)) {
         ans <- try_fetch(
@@ -41,7 +40,7 @@ hclust2 <- function(matrix, distance = "euclidean", method = "complete",
                     "{.arg method} can only be a {.cls string},",
                     "{.cls function} or an object which can be coerced to",
                     "{.cls hclust}."
-                ), call = call)
+                ), parent = cnd)
             }
         )
         return(ans)
@@ -61,10 +60,11 @@ hclust2 <- function(matrix, distance = "euclidean", method = "complete",
                 cli::cli_abort(paste(
                     "{.arg method} must return an object which",
                     "can be coerced to {.cls hclust}"
-                ), call = call)
+                ), parent = cnd)
             }
         )
     }
+    if (!is.null(distance)) attr(ans, "distance") <- d
     ans
 }
 
@@ -93,8 +93,7 @@ make_dist <- function(matrix, distance, use_missing,
             )
         )
     } else if (is.function(distance)) {
-        d <- distance(matrix)
-        if (inherits(distance, "dist")) {
+        if (!inherits(d <- distance(matrix), "dist")) {
             cli::cli_abort(
                 "{.arg {arg}} must return a {.cls dist} object",
                 call = call
@@ -103,13 +102,10 @@ make_dist <- function(matrix, distance, use_missing,
     } else if (inherits(distance, "dist")) {
         d <- distance
     } else {
-        cli::cli_abort(
-            paste(
-                "{.arg {arg}} can only be a {.cls string}, {.cls dist}",
-                "object, or a {.cls function} return {.cls dist}"
-            ),
-            call = call
-        )
+        cli::cli_abort(paste(
+            "{.arg {arg}} can only be a {.cls string}, {.cls dist}",
+            "object, or a {.cls function} return {.cls dist}"
+        ), call = call)
     }
     d
 }
@@ -161,7 +157,6 @@ make_dist <- function(matrix, distance, use_missing,
 #' @examples
 #' dendrogram_data(hclust(dist(USArrests), "ave"))
 #' @importFrom grid is.unit
-#' @importFrom vctrs vec_rbind
 #' @importFrom stats order.dendrogram
 #' @export
 dendrogram_data <- function(tree,
@@ -281,11 +276,13 @@ dendrogram_data <- function(tree,
             y <- attr(dend, "height")
 
             # for the children nodes ---------------------------------
-            data <- transpose(lapply(dend, .dendrogram_data, from_root = FALSE))
+            data <- list_transpose(
+                lapply(dend, .dendrogram_data, from_root = FALSE)
+            )
 
             # node should be the direct children
-            node <- do.call(vec_rbind, .subset2(data, "node"))
-            edge <- do.call(vec_rbind, .subset2(data, "edge"))
+            node <- vec_rbind(!!!.subset2(data, "node"))
+            edge <- vec_rbind(!!!.subset2(data, "edge"))
 
             # all coordinate for direct children nodes -------------
             # following should be length 2

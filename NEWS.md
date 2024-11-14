@@ -1,3 +1,79 @@
+# ggalign 0.0.5
+
+## Breaking changes
+
+* `direction` argument in `stack_layout()`/`ggstack()` is soft-deprecated now, user must provide it manually.
+
+* `set_context`, `order`, and `name` arguments in `align_*()` and `ggheatmap()` are soft-deprecated, which is advised to use `active` argument.
+
+* `guides`, `free_guides`, `free_spaces`, `free_labs`, and `plot_data` arguments in `align_*()` and `ggheatmap()` are deprecated, which is advised to use `plot_align` function instead.
+
+* `theme` argument in `align_*()` and `ggheatmap()` is deprecated, which is advised to use `plot_theme` function. 
+
+* `what` argument in `stack_active()` is soft-deprecated, user is advised to use `stack_switch()` to change the active plot with `what`.
+
+* `align_panel()`/`ggpanel()` is deprecated, user is advised to use `ggalign(data = NULL)` instead.
+
+## New features
+
+* new `quad_layout()` to create layout allowing free from alignment.
+
+* new `quad_alignv()`, `quad_alignh()`, `quad_free()`/`ggside()`, `quad_alignb()` alias for `quad_layout()`.
+
+* `stack_layout()` now gains a `type` argument to control whether the layout should align observations.
+
+* new `ggoncoplot()` function to draw oncoprint.
+
+* new `ggfree()` function to add ggplot to the layout.
+
+* new `fortify_matrix()` function to convert any objects to a matrix, and add `fortify_matrix()` method for `MAF` object.
+
+* new `fortify_data_frame()` function to convert any objects to a data frame.
+
+* now, a special attribute `ggalign` can be used to pass additional informations across the building process, and a new function `ggalign_attr()` can be used to extract the data from the attribute.
+
+* new `plot_theme()` function to control the default theme of the plot in layout.
+
+* new `plot_data()` function to control the data transformation of the plot in layout.
+
+* new `plot_align()` function to control specifications of the plot in layout.
+
+* new `with_quad()` function to control the `-` operator context.
+
+* new `quad_init()` function to initialize the annotation with self-provided data.
+
+* new `stack_switch()` and `quad_switch()` to switch active plots for `stack_layout()` and `quad_layout()`.
+
+* new `anno_top()`, `anno_left()`, `anno_bottom()` and `anno_right()` alias for add annotation in `quad_layout()`.
+
+* `align_dendro()` gain a new argument `cutree` to customize the process of tree cutting.
+
+* `reorder_dendrogram` argument in `align_dendro()` function now can accept a function to reorder the tree.
+
+* new `layer_order()` function to change the ggplot2 layer adding order.
+
+* new `theme_no_axes()` function to remove axis elements.
+
+* new `geom_pie()` function to draw pie charts.
+
+## Bug fixes
+
+* fix bug when apply `free_border` in `alignpatches` object.
+
+* fix bug when provide a function in `distance` argument of `align_dendro()`
+
+* fix bug when provide `hclust` or `dendrogram` in method argument of `align_dendro()`
+
+* fix bug of `coord_ggalign()` for discrete scale
+
+## Improvements
+
+* `merge` function has been implemented with `vctrs` for performance
+
+* for large matrix (> 20000 cells), automatically use `geom_raster()`
+
+* {data.table} is now removed from the dependency
+
 # ggalign 0.0.4
 
 * `layout_heatmap()`/`ggheatmap()` arguments width/height have been renamed `.width`/`.height` to helps avoid conflicts with arguments from `geom_tile()`. 
