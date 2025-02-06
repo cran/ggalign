@@ -7,9 +7,10 @@
 layout_annotation(theme = waiver(), ...)
 }
 \arguments{
-\item{theme}{A \code{\link[ggplot2:theme]{theme()}} used to render the \code{guides},
-\code{title}, \code{subtitle}, \code{caption}, \code{margins}, \code{patch.title}, \code{panel.border}, and
-\code{background}. If \code{NULL} (default), will inherit from the parent \code{layout}.}
+\item{theme}{A \code{\link[ggplot2:theme]{theme()}} object used to customize various
+elements of the plot, including \code{guides}, \code{title}, \code{subtitle}, \code{caption},
+\code{margins}, \code{panel.border}, and \code{background}. By default, the
+theme will inherit from the parent \code{layout}.}
 
 \item{...}{These dots are for future extensions and must be empty.}
 }
@@ -20,8 +21,8 @@ layout_annotation(theme = waiver(), ...)
 }
 \details{
 \itemize{
-\item \code{guides}, \code{patch.title}, \code{panel.border}, and \code{background} will always be
-added even for the nested \code{alignpatches} object.
+\item \code{guides}, \code{panel.border}, and \code{background} will always be used even for the
+nested \code{alignpatches} object.
 \item \code{title}, \code{subtitle}, \code{caption}, and \code{margins} will be added for the
 top-level \code{alignpatches} object only.
 }

@@ -1,18 +1,19 @@
-#' Arrange Plots in a Heatmap
+#' Create a heatmap
 #'
 #' @description
 #' `r lifecycle::badge('stable')`
 #'
-#' `heatmap_layout` is a specialized version of [`quad_alignb()`], which
+#' `heatmap_layout` is a specialized version of [`quad_discrete()`], which
 #' simplifies the creation of heatmap plots by integrating essential elements
 #' for a standard heatmap layout, ensuring that the appropriate data mapping and
 #' visualization layers are automatically applied. `ggheatmap` is an alias for
 #' `heatmap_layout`.
 #'
-#' @param data `r rd_layout_data()`. If not already a matrix, will be converted
-#' to one by [`fortify_matrix()`].
+#' @param data `r rd_layout_data()`. By default, it will try to inherit from
+#' parent layout. [`fortify_matrix()`] will be used to convert data to a
+#' matrix.
 #' @param ... Additional arguments passed to [`fortify_matrix()`].
-#' @inheritParams quad_free
+#' @inheritParams quad_layout
 #' @param filling A single string of `r oxford_or(c("raster", "tile"))` to
 #' indicate the filling style. By default, `waiver()` is used, which means that
 #' if the input matrix has more than 20,000 cells (`nrow * ncol > 20000`),
@@ -35,21 +36,19 @@
 #' [`scale_fill_discrete()`][ggplot2::scale_fill_discrete] for details on
 #' option settings.
 #'
-#' @inheritParams align_gg
-#' @param guides `r lifecycle::badge("deprecated")` Please use
-#' [`plot_align()`] function instead.
 #' @section ggplot2 specification:
-#' The data input in `ggheatmap` will be converted into the long formated data
-#' frame when drawing. The default mapping will use `aes(.data$.x, .data$.y)`,
-#' you can use `mapping` argument to control it. The data in the underlying
-#' `ggplot` object contains following columns:
+#' The data input will be converted to a matrix using [`fortify_matrix()`], and
+#' the data in the underlying main plot will contain the following columns:
 #'
-#'  - `.xpanel` and `.ypanel`: the column and row panel
+#'  - `.panel_x` and `.panel_y`: the column and row panel groups.
 #'
-#'  - `.x` and `.y`: the `x` and `y` coordinates
+#'  - `.x` and `.y`: an integer index of `x` and `y` coordinates
 #'
-#'  - `.row_names` and `.column_names`: A factor of the row and column names of
-#'    the original matrix (only applicable when names exist).
+#'  - `.discrete_x` and `.discrete_y`: a factor of the data labels (only
+#'    applicable when `.row_names` and `.column_names` exists).
+#'
+#'  - `.row_names` and `.column_names`: A character of the row and column names
+#'    of the original matrix (only applicable when names exist).
 #'
 #'  - `.row_index` and `.column_index`: the row and column index of the original
 #'    matrix.
@@ -66,10 +65,7 @@
 heatmap_layout <- function(data = NULL, mapping = aes(),
                            ...,
                            width = NA, height = NA, filling = waiver(),
-                           theme = NULL, active = NULL,
-                           set_context = deprecated(),
-                           order = deprecated(), name = deprecated(),
-                           guides = deprecated()) {
+                           theme = NULL, active = NULL) {
     UseMethod("heatmap_layout")
 }
 
@@ -84,10 +80,7 @@ ggheatmap <- heatmap_layout
 heatmap_layout.default <- function(data = NULL, mapping = aes(),
                                    ...,
                                    width = NA, height = NA, filling = waiver(),
-                                   theme = NULL, active = NULL,
-                                   set_context = deprecated(),
-                                   order = deprecated(), name = deprecated(),
-                                   guides = deprecated()) {
+                                   theme = NULL, active = NULL) {
     # A single boolean value for compatible with `version <= 0.0.4`
     if (isTRUE(filling)) {
         filling <- waiver()
@@ -99,49 +92,26 @@ heatmap_layout.default <- function(data = NULL, mapping = aes(),
     data <- data %|w|% NULL
     # we need a matrix to melted into long formated data frame
     data <- fortify_matrix(data = data, ...)
-    if (!is.null(data) && !is.function(data)) {
-        nrows <- NROW(data)
-        ncols <- ncol(data)
-    } else {
-        nrows <- NULL
-        ncols <- NULL
-    }
-    assert_active(active)
-    active <- update_active(active, new_active(
-        use = TRUE, order = NA_integer_, name = NA_character_
-    ))
-    active <- deprecate_active(active, "ggheatmap",
-        set_context = set_context, order = order, name = name
-    )
     ans <- new_quad_layout(
         name = "ggheatmap",
         data = data,
-        horizontal = new_layout_params(nobs = nrows),
-        vertical = new_layout_params(nobs = ncols),
-        mapping = mapping, theme = theme, active = active,
+        mapping = mapping,
+        theme = theme, active = active,
         width = width, height = height,
         class = "HeatmapLayout"
     )
-    if (lifecycle::is_present(guides)) {
-        lifecycle::deprecate_warn(
-            "0.0.5", "ggheatmap(guides)", "plot_align()"
-        )
-        assert_layout_position(guides)
-        ans@controls$plot_align["guides"] <- list(guides)
-    }
-    # always remove default axis titles
-    # https://stackoverflow.com/questions/72402570/why-doesnt-gplot2labs-overwrite-update-the-name-argument-of-scales-function
-    # There are multiple ways to set labels in a plot, which take different
-    # priorities. Here are the priorities from highest to lowest.
-    # 1. The guide title.
-    # 2. The scale name.
-    # 3. The `labs()` function.
-    # 4. The captured expression in aes().
-    ans@plot <- ans@plot + ggplot2::labs(x = NULL, y = NULL)
     # add default mapping
-    ans@plot$mapping <- add_default_mapping(
-        ans@plot$mapping, aes(.data$.x, .data$.y)
-    )
+    ans@plot <- ggadd_default(ans@plot, mapping = aes(.data$.x, .data$.y)) +
+        ggplot2::labs(x = NULL, y = NULL)
     ans@filling <- filling
     ans
 }
+
+# used to create the heatmap layout
+#' @keywords internal
+#' @include layout-quad-.R
+methods::setClass(
+    "HeatmapLayout",
+    contains = "QuadLayout",
+    list(filling = "ANY") # parameters for heatmap body
+)

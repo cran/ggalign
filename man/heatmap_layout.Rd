@@ -3,7 +3,7 @@
 \name{heatmap_layout}
 \alias{heatmap_layout}
 \alias{ggheatmap}
-\title{Arrange Plots in a Heatmap}
+\title{Create a heatmap}
 \usage{
 heatmap_layout(
   data = NULL,
@@ -13,19 +13,17 @@ heatmap_layout(
   height = NA,
   filling = waiver(),
   theme = NULL,
-  active = NULL,
-  set_context = deprecated(),
-  order = deprecated(),
-  name = deprecated(),
-  guides = deprecated()
+  active = NULL
 )
 }
 \arguments{
-\item{data}{Default dataset to use for the layout. If not specified, it must be supplied in each plot added to the layout. By default, it will try to inherit from parent layout. If not already a matrix, will be converted
-to one by \code{\link[=fortify_matrix]{fortify_matrix()}}.}
+\item{data}{Default dataset to use for the layout. If not specified, it must be supplied in each plot added to the layout. By default, it will try to inherit from
+parent layout. \code{\link[=fortify_matrix]{fortify_matrix()}} will be used to convert data to a
+matrix.}
 
-\item{mapping}{Default list of aesthetic mappings to use for plot.
-If not specified, must be supplied in each layer added to the plot.}
+\item{mapping}{Default list of aesthetic mappings to use for main plot in the
+layout. If not specified, must be supplied in each layer added to the main
+plot.}
 
 \item{...}{Additional arguments passed to \code{\link[=fortify_matrix]{fortify_matrix()}}.}
 
@@ -54,24 +52,14 @@ default heatmap body filling color scale. See
 \code{\link[ggplot2:scale_colour_discrete]{scale_fill_discrete()}} for details on
 option settings.}
 
-\item{theme}{A \code{\link[ggplot2:theme]{theme()}} used to render the \code{guides},
-\code{title}, \code{subtitle}, \code{caption}, \code{margins}, \code{patch.title}, \code{panel.border}, and
-\code{background}. If \code{NULL} (default), will inherit from the parent \code{layout}.}
+\item{theme}{A \code{\link[ggplot2:theme]{theme()}} object used to customize various
+elements of the layout, including \code{guides}, \code{title}, \code{subtitle}, \code{caption},
+\code{margins}, \code{panel.border}, and \code{background}. By default, the theme will
+inherit from the parent \code{layout}. It also controls the panel spacing for all
+plots in the layout.}
 
 \item{active}{A \code{\link[=active]{active()}} object that defines the context settings when
 added to a layout.}
-
-\item{set_context}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active}
-argument instead.}
-
-\item{order}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active} argument
-instead.}
-
-\item{name}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active} argument
-instead.}
-
-\item{guides}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_align]{plot_align()}} function instead.}
 }
 \value{
 A \code{HeatmapLayout} object.
@@ -79,7 +67,7 @@ A \code{HeatmapLayout} object.
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
 
-\code{heatmap_layout} is a specialized version of \code{\link[=quad_alignb]{quad_alignb()}}, which
+\code{heatmap_layout} is a specialized version of \code{\link[=quad_discrete]{quad_discrete()}}, which
 simplifies the creation of heatmap plots by integrating essential elements
 for a standard heatmap layout, ensuring that the appropriate data mapping and
 visualization layers are automatically applied. \code{ggheatmap} is an alias for
@@ -87,15 +75,15 @@ visualization layers are automatically applied. \code{ggheatmap} is an alias for
 }
 \section{ggplot2 specification}{
 
-The data input in \code{ggheatmap} will be converted into the long formated data
-frame when drawing. The default mapping will use \code{aes(.data$.x, .data$.y)},
-you can use \code{mapping} argument to control it. The data in the underlying
-\code{ggplot} object contains following columns:
+The data input will be converted to a matrix using \code{\link[=fortify_matrix]{fortify_matrix()}}, and
+the data in the underlying main plot will contain the following columns:
 \itemize{
-\item \code{.xpanel} and \code{.ypanel}: the column and row panel
-\item \code{.x} and \code{.y}: the \code{x} and \code{y} coordinates
-\item \code{.row_names} and \code{.column_names}: A factor of the row and column names of
-the original matrix (only applicable when names exist).
+\item \code{.panel_x} and \code{.panel_y}: the column and row panel groups.
+\item \code{.x} and \code{.y}: an integer index of \code{x} and \code{y} coordinates
+\item \code{.discrete_x} and \code{.discrete_y}: a factor of the data labels (only
+applicable when \code{.row_names} and \code{.column_names} exists).
+\item \code{.row_names} and \code{.column_names}: A character of the row and column names
+of the original matrix (only applicable when names exist).
 \item \code{.row_index} and \code{.column_index}: the row and column index of the original
 matrix.
 \item \code{value}: the actual matrix value.

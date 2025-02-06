@@ -1,165 +1,256 @@
 #' Build a Matrix
 #'
-#' This function converts various objects into a matrix format.
+#' @description
+#' `r lifecycle::badge('stable')`
 #'
-#' @param data An object to be converted to a matrix.
-#' @inheritParams rlang::args_dots_used
+#' This function converts various objects into a matrix format. By default, it
+#' calls [`as.matrix()`] to build a matrix.
+#'
+#' @param data An object to be converted into a matrix.
+#' @param ... Additional arguments passed to methods.
+#' @param data_arg The argument name for `data`. Developers can use it to
+#' improve messages. Not used by the user.
+#' @param call The execution environment where `data` and other arguments for
+#' the method are collected, e.g., [`caller_env()`][rlang::caller_env()].
+#' Developers can use it to improve messages. Not used by the user.
 #' @return A matrix.
 #' @seealso
 #' - [`fortify_matrix.default()`]
 #' - [`fortify_matrix.MAF()`]
+#' - [`fortify_matrix.GISTIC()`]
+#' - [`fortify_matrix.list_upset()`]
+#' - [`fortify_matrix.matrix_upset()`]
 #' @export
-fortify_matrix <- function(data, ...) {
-    rlang::check_dots_used()
+fortify_matrix <- function(data, ..., data_arg = caller_arg(data),
+                           call = NULL) {
     UseMethod("fortify_matrix")
 }
 
-#' @inherit fortify_matrix
+#' @inheritParams rlang::args_dots_empty
+#' @inherit fortify_matrix title return
 #' @description
 #' By default, it calls [`as.matrix()`] to build a matrix.
+#' @inheritParams fortify_matrix
 #' @family fortify_matrix methods
 #' @importFrom rlang try_fetch
 #' @export
-fortify_matrix.default <- function(data, ...) {
+fortify_matrix.default <- function(data, ..., data_arg = caller_arg(data),
+                                   call = NULL) {
+    call <- call %||% current_call()
+    rlang::check_dots_empty(call = call)
     try_fetch(
         as.matrix(data),
         error = function(cnd) {
-            cli::cli_abort(paste0(
-                "{.arg data} must be a {.cls matrix}, ",
-                "or an object coercible by {.fn fortify_matrix}, or a valid ",
-                "{.cls matrix}-like object coercible by {.fn as.matrix}"
-            ), parent = cnd)
+            cli_abort(
+                paste0(
+                    "{.arg {data_arg}} must be a {.cls matrix}, ",
+                    "or an object coercible by {.fn fortify_matrix}, or a valid ",
+                    "{.cls matrix}-like object coercible by {.fn as.matrix}"
+                ),
+                call = call
+            )
         }
     )
 }
 
 #' @export
-fortify_matrix.matrix <- function(data, ...) data
+fortify_matrix.waiver <- function(data, ..., data_arg = caller_arg(data),
+                                  call = NULL) {
+    call <- call %||% current_call()
+    rlang::check_dots_empty(call = call)
+    data
+}
 
 #' @export
-fortify_matrix.waiver <- function(data, ...) data
+fortify_matrix.NULL <- fortify_matrix.waiver
 
 #' @export
-fortify_matrix.NULL <- function(data, ...) NULL
+fortify_matrix.function <- fortify_matrix.waiver
 
 #' @export
-fortify_matrix.function <- function(data, ...) data
+fortify_matrix.formula <- function(data, ..., data_arg = caller_arg(data),
+                                   call = NULL) {
+    call <- call %||% current_call()
+    rlang::check_dots_empty(call = call)
+    rlang::as_function(data)
+}
 
-#' @export
-fortify_matrix.formula <- function(data, ...) rlang::as_function(data)
-
-#' @inherit fortify_matrix.default
-#' @inheritParams fortify_matrix.default
-#' @param ... Not used currently.
-#' @param genes An atomic character defines the genes to draw.
-#' @param n_top A single number indicates how many top genes to be drawn.
-#' @param remove_empty_samples A single boolean value indicating whether to drop
-#' samples without any genomic alterations.
-#' @param collapse_vars A single boolean value indicating whether to collapse
-#' multiple alterations in the same sample and gene into a single value
-#' `"Multi_Hit"`.
-#' @section ggalign attributes:
-#'  - `gene_anno`: gene summary informations
-#'  - `sample_anno`: sample summary informations
-#'  - `n_genes`: Total of genes
-#'  - `n_samples`: Total of samples
-#'  - `breaks`: factor levels of `Variant_Classification`, if `collapse_vars =
-#'    TRUE`, `"Multi_Hit"` will be added in the end.
+#' Build a matrix from a matrix
+#' @param data A matrix object.
+#' @inheritParams rlang::args_dots_empty
+#' @inheritParams fortify_matrix
+#' @section shape:
+#'  - `upset`: [`fortify_matrix.matrix_upset`]
 #' @family fortify_matrix methods
 #' @export
-fortify_matrix.MAF <- function(data, ..., genes = NULL, n_top = NULL,
-                               remove_empty_samples = TRUE,
-                               collapse_vars = FALSE) {
-    rlang::check_installed(
-        "maftools", "to make mutation matrix from `MAF` object"
+fortify_matrix.matrix <- fortify_matrix.waiver
+
+#' @inherit fortify_matrix.list_upset title
+#' @description
+#' Converts a matrix suitable for creating an UpSet plot. [`tune.matrix()`]
+#' helps convert `matrix` object to a `matrix_upset` object.
+#' @param data A matrix where each row represents an element, and each column
+#' defines a set. The values in the matrix indicate whether the element is part
+#' of the set. Any non-missing value signifies that the element exists in the
+#' set.
+#' @inheritParams fortify_matrix.list_upset
+#' @inheritDotParams fortify_matrix.list_upset
+#' @inheritSection fortify_matrix.list_upset ggalign attributes
+#' @seealso [`tune.matrix()`]
+#' @family fortify_matrix methods
+#' @export
+fortify_matrix.matrix_upset <- function(data, ..., data_arg = caller_arg(data),
+                                        call = NULL) {
+    call <- call %||% current_call()
+    data <- !is.na(tune_data(data))
+    elements <- vec_seq_along(data)
+    fortify_matrix.list_upset(
+        lapply(seq_len(ncol(data)), function(i) {
+            .subset(elements, data[, i, drop = TRUE])
+        }),
+        ...,
+        data_arg = data_arg,
+        call = call
     )
-    sample_anno <- data@variant.classification.summary
-    gene_anno <- data@gene.summary
+}
 
-    # we transform the data into a normal data frame
-    data <- new_data_frame(data@data)[
-        c("Tumor_Sample_Barcode", "Hugo_Symbol", "Variant_Classification")
-    ]
-    n_genes <- vec_unique_count(.subset2(data, "Hugo_Symbol"))
-    n_samples <- vec_unique_count(.subset2(data, "Tumor_Sample_Barcode"))
+#' Convert the shape of a matrix for fortify method
+#'
+#' @param data A matrix.
+#' @param shape Not used currently.
+#' @seealso
+#' - [`fortify_matrix.matrix()`]
+#' - [`fortify_matrix.matrix_upset()`]
+#' @family tune methods
+#' @export
+tune.matrix <- function(data, shape = NULL) {
+    if (!is.null(shape)) {
+        cli_abort("{.arg shape} cannot be used currently for {.cls matrix} object")
+    }
+    new_tune(data, class = "matrix_upset")
+}
 
-    # filter by genes
-    if (is.null(genes)) {
-        genes <- gene_anno$Hugo_Symbol
-    } else { # reorder the gene annotation based on the provided genes
-        genes <- intersect(as.character(genes), gene_anno$genes)
-        gene_anno <- vec_slice(gene_anno, match(genes, gene_anno$genes))
-    }
-    if (!is.null(n_top)) {
-        gene_anno <- vec_slice(
-            gene_anno,
-            order(gene_anno$AlteredSamples, decreasing = TRUE)[seq_len(n_top)]
-        )
-        genes <- gene_anno$Hugo_Symbol
-    }
-    data <- vec_slice(data, .subset2(data, "Hugo_Symbol") %in% genes)
-    indices <- vec_group_loc(data[c("Tumor_Sample_Barcode", "Hugo_Symbol")])
-    vars <- .subset2(data, "Variant_Classification")
-    lvls <- levels(vars) %||% sort(unique(vars))
-    if (collapse_vars) {
-        vars <- vapply(
-            vec_chop(as.character(vars), indices = .subset2(indices, "loc")),
-            function(var) {
-                if (length(var) > 1L) {
-                    return("Multi_Hit")
+#' Build a Matrix for UpSet plot
+#'
+#' @description
+#' `r lifecycle::badge('experimental')`
+#'
+#' This function converts a list into a matrix format suitable for creating an
+#' UpSet plot. It always returns a matrix for a `horizontal` UpSet plot.
+#' @inheritParams rlang::args_dots_empty
+#' @param data A list of sets.
+#' @param mode A string of `r oxford_or(c("distinct", "intersect", "union"))`
+#' indicates the mode to define the set intersections. Check
+#' <https://jokergoo.github.io/ComplexHeatmap-reference/book/upset-plot.html#upset-mode>
+#' for details.
+#' @inheritParams fortify_matrix
+#' @section ggalign attributes:
+#'  - `intersection_sizes`: An integer vector indicating the size of each
+#'    intersection.
+#'  - `set_sizes`: An integer vector indicating the size of each set.
+#' @seealso [`tune.list()`]
+#' @family fortify_matrix methods
+#' @aliases fortify_matrix.list
+#' @export
+fortify_matrix.list_upset <- function(data, mode = "distinct", ...,
+                                      data_arg = caller_arg(data),
+                                      call = NULL) {
+    call <- call %||% current_call()
+    rlang::check_dots_empty(call = call)
+    mode <- arg_match0(mode, c("distinct", "intersect", "union"),
+        error_call = call
+    )
+    data <- lapply(tune_data(data), function(x) {
+        vec_unique(vec_slice(x, !vec_detect_missing(x)))
+    })
+    data <- list_drop_empty(data)
+
+    # Based on the explanation from
+    # https://jokergoo.github.io/ComplexHeatmap-reference/book/upset-plot.html
+    action <- switch(mode,
+        distinct = function(data, intersection) {
+            out <- NULL
+            for (i in which(intersection)) {
+                if (is.null(out)) {
+                    out <- .subset2(data, i)
+                } else if (vec_size(out) == 0L) { # early exit for empty items
+                    return(out)
                 } else {
-                    var
+                    out <- vec_set_intersect(out, .subset2(data, i))
                 }
-            }, character(1L),
-            USE.NAMES = FALSE
-        )
-        if (any(vars == "Multi_Hit")) lvls <- c(lvls, "Multi_Hit")
-    } else {
-        vars <- vapply(
-            vec_chop(as.character(vars), indices = .subset2(indices, "loc")),
-            function(var) {
-                if (length(var) > 1L) {
-                    paste(var, collapse = ";")
+            }
+            for (i in which(!intersection)) {
+                if (vec_size(out) == 0L) { # early exit for empty items
+                    return(out)
+                }
+                out <- vec_set_difference(out, .subset2(data, i))
+            }
+            return(out)
+        },
+        intersect = function(data, intersection) {
+            out <- NULL
+            for (i in which(intersection)) {
+                if (is.null(out)) {
+                    out <- .subset2(data, i)
+                } else if (vec_size(out) == 0L) { # early exit for empty items
+                    return(out)
                 } else {
-                    var
+                    out <- vec_set_intersect(out, .subset2(data, i))
                 }
-            }, character(1L),
-            USE.NAMES = FALSE
-        )
-    }
-    ans <- vec_cbind(
-        .subset2(indices, "key"),
-        new_data_frame(list(Variant_Classification = vars))
+            }
+            out
+        },
+        union = function(data, intersection) {
+            Reduce(vec_set_union, .subset(data, intersection))
+        }
     )
-    # if `maftools` is installed, `data.table` must have been installed
-    # No need to check if data.table is installed
-    dcast <- getFromNamespace("dcast", "data.table")
-    setDT <- getFromNamespace("setDT", "data.table")
-    setDF <- getFromNamespace("setDF", "data.table")
-    setDT(ans)
-    ans <- dcast(ans, Hugo_Symbol ~ Tumor_Sample_Barcode,
-        value.var = "Variant_Classification"
-    )
-    setDF(ans)
-    rownms <- .subset2(ans, "Hugo_Symbol")
-    ans <- as.matrix(ans[setdiff(names(ans), "Hugo_Symbol")])
-    rownames(ans) <- rownms
-    ans <- ans[match(genes, rownms), , drop = FALSE]
 
-    # filter by samples
-    sample_anno$Tumor_Sample_Barcode <- as.character(
-        sample_anno$Tumor_Sample_Barcode
+    intersection <- logical(vec_size(data)) # template
+    intersection_and_size <- lapply(
+        seq_len(vec_size(intersection)),
+        function(n) {
+            # generate all possible intersections
+            utils::combn(vec_size(intersection), n, function(index) {
+                intersection[index] <- TRUE
+                list(
+                    intersection = intersection,
+                    # for each intersection, we define the size
+                    size = vec_size(action(data, intersection))
+                )
+            }, simplify = FALSE)
+        }
     )
-    sample_anno <- sample_anno[
-        match(colnames(ans), sample_anno$Tumor_Sample_Barcode),
-    ]
-    if (remove_empty_samples) {
-        keep <- sample_anno$total > 0L
-        sample_anno <- sample_anno[keep, ]
-        ans <- ans[, keep, drop = FALSE]
+
+    # https://en.wikipedia.org/wiki/UpSet_plot
+    # UpSets can be used horizontally and vertically.
+    # In a vertical UpSet plot, the columns of the matrix correspond to the
+    # sets, the rows correspond to the intersections.
+    # we by default use `horizontal` upset, the rows of the matrix correspond
+    # to the sets, the columns correspond to the intersections.
+    ans <- list_transpose(unlist(intersection_and_size, FALSE, FALSE))
+    intersections <- inject(cbind(!!!.subset2(ans, "intersection")))
+    rownames(intersections) <- names(data)
+    intersection_sizes <- unlist(.subset2(ans, "size"), FALSE, FALSE)
+    keep <- intersection_sizes > 0L # remove intersection without items
+    intersections <- intersections[, keep, drop = FALSE]
+    intersection_sizes <- intersection_sizes[keep]
+    ggalign_data_set(intersections,
+        intersection_sizes = intersection_sizes,
+        set_sizes = list_sizes(data),
+        upset_mode = mode
+    )
+}
+
+#' Convert the shape of a list for fortify method
+#'
+#' @param data A list
+#' @param shape Not used currently.
+#' @seealso [`fortify_matrix.list_upset()`]
+#' @family tune methods
+#' @export
+tune.list <- function(data, shape = NULL) {
+    if (!is.null(shape)) {
+        cli_abort("{.arg shape} cannot be used currently for {.cls list} object")
     }
-    structure(ans, ggalign = list(
-        gene_anno = gene_anno, sample_anno = sample_anno,
-        n_genes = n_genes, n_samples = n_samples, breaks = lvls
-    ))
+    new_tune(data, class = "list_upset")
 }

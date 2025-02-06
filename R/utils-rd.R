@@ -4,9 +4,9 @@ rd_layout <- function() {
 
 rd_quad <- function() "[`quad_layout()`]/[`ggheatmap()`]"
 
-rd_stack_what <- function() {
+rd_chain_what <- function() {
     paste(
-        "A single number or string of the plot elements in the stack layout.",
+        "A single number or string of the plot elements in the layout.",
         "If `NULL`, will remove any active context"
     )
 }
@@ -21,8 +21,7 @@ rd_quad_position <- function(action) {
 rd_layout_data <- function() {
     paste(
         "Default dataset to use for the layout. If not specified, it must be",
-        "supplied in each plot added to the layout. By default, it will try to",
-        "inherit from parent layout"
+        "supplied in each plot added to the layout"
     )
 }
 

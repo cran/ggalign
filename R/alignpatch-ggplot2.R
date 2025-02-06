@@ -6,6 +6,7 @@ ggalign_build.ggplot <- function(x) x
 
 ##################################################
 #' @export
+#' @include alignpatch-build.R
 print.patch_ggplot <- print.alignpatches
 
 #' @importFrom grid grid.draw
@@ -27,20 +28,13 @@ alignpatch.ggplot <- function(x) ggproto(NULL, PatchGgplot, plot = x)
 #    caption
 #    guide: can be collected or kept
 #' @importFrom ggplot2 ggplotGrob update_labels
+#' @include alignpatch-.R
 PatchGgplot <- ggproto("PatchGgplot", Patch,
     set_guides = function(guides) guides,
     set_theme = function(theme) NULL,
     patch_gtable = function(self, plot = self$plot) {
         # extract patch titles --------------------------------
-        patch_titles <- .subset(
-            .subset2(plot, "labels"),
-            c("top", "left", "bottom", "right")
-        )
-
-        # we remove patch titles to avoid warning message for unknown labels
-        plot <- update_labels(plot, list(
-            top = NULL, left = NULL, bottom = NULL, right = NULL
-        ))
+        patch_titles <- .subset2(plot, "ggalign_patch_labels")
 
         # complete_theme() will ensure elements exist --------
         theme <- complete_theme(.subset2(plot, "theme"))

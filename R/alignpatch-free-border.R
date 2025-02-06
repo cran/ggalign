@@ -22,7 +22,7 @@ free_border.alignpatches <- free_border.ggplot
 free_border.free_align <- function(plot, borders = "tlbr") {
     assert_position(borders)
     borders <- setdiff_position(borders, attr(plot, "free_axes"))
-    if (nchar(borders) == 0L) {
+    if (!nzchar(borders)) {
         return(plot)
     }
     NextMethod()
@@ -32,11 +32,11 @@ free_border.free_align <- function(plot, borders = "tlbr") {
 free_border.free_lab <- function(plot, borders = "tlbr") {
     assert_position(borders)
     free_labs <- setdiff_position(attr(plot, "free_labs"), borders)
-    if (nchar(free_labs) == 0L) {
-        attr(plot, "free_labs") <- NULL
-        class(plot) <- setdiff(class(plot), "free_lab")
-    } else {
+    if (nzchar(free_labs)) {
         attr(plot, "free_labs") <- free_labs
+    } else {
+        attr(plot, "free_labs") <- NULL
+        plot <- remove_class(plot, "free_lab")
     }
     NextMethod()
 }
@@ -52,7 +52,7 @@ free_border.free_border <- function(plot, borders = "tlbr") {
 
 #' @export
 free_border.default <- function(plot, borders = "tlbr") {
-    cli::cli_abort("Cannot use with {.obj_type_friendly {plot}}")
+    cli_abort("Cannot use with {.obj_type_friendly {plot}}")
 }
 
 ################################################################

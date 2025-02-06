@@ -7,94 +7,69 @@
 \title{Create a New \code{align} Object}
 \usage{
 align(
-  align_class,
-  params,
-  data,
+  align,
+  data = NULL,
+  ...,
+  plot = NULL,
   size = NULL,
-  controls = NULL,
-  limits = TRUE,
-  facet = TRUE,
+  schemes = NULL,
   no_axes = NULL,
   active = NULL,
-  free_guides = deprecated(),
-  free_spaces = deprecated(),
-  plot_data = deprecated(),
-  theme = deprecated(),
-  free_labs = deprecated(),
-  check.param = TRUE,
   call = caller_call()
 )
 }
 \arguments{
-\item{align_class}{A \code{Align} object.}
+\item{align}{An \code{Align} object.}
 
-\item{params}{A list of parameters for \code{align_class}.}
-
-\item{data}{Options for \code{data}:
+\item{data}{The following options can be used:
 \itemize{
-\item A matrix, data frame, or atomic vector.
-\item \code{\link[ggplot2:waiver]{waiver()}}: Uses the \verb{layout matrix}.
 \item \code{NULL}: No data is set.
-\item A \code{function} (including purrr-like lambda syntax) applied to the layout
-\code{matrix}.
+\item \code{\link[ggplot2:waiver]{waiver()}}: Inherits the data from the layout matrix.
+\item A \code{function} (including purrr-like lambda syntax): Applied to the layout
+matrix to transform the data before use. To transform the final plot
+data, please use \code{\link[=scheme_data]{scheme_data()}}.
+\item A \code{matrix}, \code{data.frame}, or atomic vector.
 }}
+
+\item{...}{Additional fields passed to the \code{align} object.}
+
+\item{plot}{A ggplot object.}
 
 \item{size}{The relative size of the plot, can be specified as a
-\code{\link[grid:unit]{unit}}.}
+\code{\link[grid:unit]{unit()}}. Note that for \code{\link[=circle_layout]{circle_layout()}}, all size values
+will be interpreted as relative sizes, as this layout type adjusts based on
+the available space in the circular arrangement.}
 
-\item{controls}{Options for \code{controls}:
+\item{schemes}{Options for \code{schemes}:
 \itemize{
-\item \code{NULL}: Used when \verb{align_*()} functions do not add a plot.
-\item \code{\link[ggplot2:waiver]{waiver()}}: Try to infer \code{controls} based on \code{data}.
+\item \code{NULL}: Used when \code{align} do not add a plot.
+\item \code{\link[ggplot2:waiver]{waiver()}}: Try to infer \code{schemes} based on \code{data}.
 }}
-
-\item{limits}{Logical; if \code{TRUE}, sets layout limits for the plot.}
-
-\item{facet}{Logical; if \code{TRUE}, applies facets to the layout. If \code{FALSE},
-\code{limits} will also be set to \code{FALSE}.}
 
 \item{no_axes}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Logical; if \code{TRUE},
 removes axes elements for the alignment axis using \code{\link[=theme_no_axes]{theme_no_axes()}}. By
-default, will controled by the option-
+default, will use the option-
 \code{"ggalign.align_no_axes"}.}
 
 \item{active}{A \code{\link[=active]{active()}} object that defines the context settings when
 added to a layout.}
 
-\item{free_guides}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#superseded}{\figure{lifecycle-superseded.svg}{options: alt='[Superseded]'}}}{\strong{[Superseded]}} Please use
-\code{\link[=plot_align]{plot_align()}} function instead.}
-
-\item{free_spaces}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_align]{plot_align()}} function instead.}
-
-\item{plot_data}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_data]{plot_data()}} function instead.}
-
-\item{theme}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_theme]{plot_theme()}} function instead.}
-
-\item{free_labs}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_align]{plot_align()}} function instead.}
-
-\item{check.param}{Logical; if \code{TRUE}, checks parameters and provides
-warnings as necessary.}
-
 \item{call}{The \code{call} used to construct the \code{Align} object, for reporting
 messages.}
 }
 \value{
-A new \code{align} object.
+A new \code{ggalign_plot} object.
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
 
-An \code{align} object interacts with the \code{layout} object to reorder or split
-observations and, in some cases, add plot components to the \code{layout}.
+An \code{Align} object interacts with the \code{Layout} object to reorder or
+split observations and, in some cases, add plot components to the \code{Layout}.
 }
 \details{
 Each of the \verb{Align*} objects is just a \code{\link[ggplot2:ggproto]{ggproto()}}
-object, descended from the top-level \code{Align}, and each implements various
-methods and fields.
+object, descended from the top-level \code{Align}, and each implements
+various methods and fields.
 
 To create a new type of \verb{Align*} object, you typically will want to
 override one or more of the following:
@@ -102,31 +77,21 @@ override one or more of the following:
 \item \code{setup_params}: Prepare parameter or check parameters used by this plot.
 \item \code{setup_data}: Prepare data used by this plot.
 \item \code{compute}: A method used to compute statistics.
-\item \code{layout}: A method used to group observations into panel or reorder
+\item \code{align}: A method used to group observations into panel or reorder
 observations.
 \item \code{draw}: A method used to draw the plot. Must return a \code{ggplot} object.
 }
 }
-\section{Axis Alignment for Observations}{
+\section{Discrete Axis Alignment}{
 
 It is important to note that we consider rows as observations, meaning
 \code{vec_size(data)}/\code{NROW(data)} must match the number of observations along the
 axis used for alignment (x-axis for a vertical stack layout, y-axis for a
 horizontal stack layout).
-\itemize{
-\item \code{\link[=quad_layout]{quad_layout()}}/\code{\link[=ggheatmap]{ggheatmap()}}: For column annotation, the layout
-\code{matrix} will be transposed before use (if \code{data} is a function, it is
-applied to the transposed matrix), as column annotation uses columns as
-observations but alignment requires rows.
-\item \code{\link[=stack_layout]{stack_layout()}}: The layout matrix is used as is, aligning all plots
-along a single axis.
-}
 }
 
 \examples{
-align_gg()
 align_dendro()
-
 }
 \keyword{datasets}
 \keyword{internal}

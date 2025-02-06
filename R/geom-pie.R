@@ -38,6 +38,7 @@ geom_pie <- function(mapping = NULL, data = NULL, stat = "identity",
     )
 }
 
+#' @importFrom grid gpar
 #' @importFrom ggplot2 ggproto aes resolution
 #' @importFrom rlang set_names
 GeomPie <- ggproto("GeomPie",
@@ -95,13 +96,12 @@ GeomPie <- ggproto("GeomPie",
             function(x, y, radius, ang, ang0) {
                 if (clockwise) {
                     ang0 <- 90 - ang0
-                    radians <- seq(ang0, ang0 - ang, length.out = steps)[-1L] *
-                        pi / 180
+                    radians <- seq(ang0, ang0 - ang, length.out = steps)[-1L]
                 } else {
                     ang0 <- 90 + ang0
-                    radians <- seq(ang0, ang0 + ang, length.out = steps)[-1L] *
-                        pi / 180
+                    radians <- seq(ang0, ang0 + ang, length.out = steps)[-1L]
                 }
+                radians <- radians / 180 * pi
                 data_frame0(
                     x = c(x, cos(radians) * radius + x),
                     y = c(y, sin(radians) * radius + y)
@@ -124,16 +124,9 @@ GeomPie <- ggproto("GeomPie",
             y = circular_data$y,
             id.lengths = rep_len(steps, nrow(data)),
             default.units = "native",
-            gp = grid::gpar(
+            gp = gpar(
                 col = data$colour,
-                fill = try_fetch(
-                    # for version >= 3.5.0
-                    ggplot2::fill_alpha(data$fill, data$alpha),
-                    error = function(cnd) {
-                    # for version < 3.5.0
-                        ggplot2::alpha(data$fill, data$alpha)
-                    }
-                ),
+                fill = fill_alpha(data$fill, data$alpha),
                 lwd = data$linewidth,
                 lty = data$linetype,
                 lineend = lineend,

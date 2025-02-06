@@ -15,13 +15,13 @@
 #' @export
 inset <- function(plot, ..., align = "panel", on_top = TRUE,
                   clip = TRUE, vp = NULL) {
-    grob <- make_inset(
+    make_inset(
         plot = plot, ..., align = align, on_top = on_top,
         clip = clip, vp = vp
     )
-    add_class(grob, "patch_inset")
 }
 
+#' @importFrom grid editGrob
 #' @importFrom rlang arg_match0
 make_inset <- function(plot, ..., align, on_top, clip, vp,
                        call = caller_call()) {
@@ -30,13 +30,25 @@ make_inset <- function(plot, ..., align, on_top, clip, vp,
     assert_bool(clip, call = call)
     assert_s3_class(vp, "viewport", allow_null = TRUE, call = call)
     if (!is.grob(grob <- patch(x = plot, ...))) {
-        cli::cli_abort("{.fn patch} must return a {.cls grob}", call = call)
+        cli_abort("{.fn patch} must return a {.cls grob}", call = call)
     }
-    attr(grob, "align") <- align
-    attr(grob, "clip") <- if (clip) "on" else "off"
-    attr(grob, "vp") <- vp
-    attr(grob, "on_top") <- on_top
-    grob
+    if (!is.null(vp)) grob <- editGrob(grob, vp = vp)
+    structure(
+        list(
+            grob = grob,
+            align = align,
+            clip = if (clip) "on" else "off",
+            on_top = on_top
+        ),
+        class = "patch_inset"
+    )
+}
+
+#' @importFrom grid grid.draw
+#' @export
+grid.draw.patch_inset <- function(x, recording = TRUE) {
+    x <- .subset2(x, "grob")
+    NextMethod()
 }
 
 #' @importFrom ggplot2 ggplot_add
@@ -70,14 +82,13 @@ ggplot_add.patch_inset <- function(object, plot, object_name) {
 #' @export
 #' @keywords internal
 patch <- function(x, ...) {
-    rlang::check_dots_used()
     UseMethod("patch")
 }
 
 # Following methods much are copied from `cowplot` or `ggplotify`
 #' @export
 patch.default <- function(x, ...) {
-    cli::cli_abort("Cannot make grob from {.obj_type_friendly {x}}")
+    cli_abort("Cannot make grob from {.obj_type_friendly {x}}")
 }
 
 #' @inherit patch title description return
@@ -86,14 +97,16 @@ patch.default <- function(x, ...) {
 #' @family patch methods
 #' @export
 patch.grob <- function(x, ...) {
+    rlang::check_dots_empty()
     x
 }
 
 #' @export
 #' @rdname patch.grob
 patch.gList <- function(x, ...) {
+    rlang::check_dots_empty()
     # gLists need to be wrapped in a grob tree
-    grid::grobTree(plot)
+    grid::grobTree(x)
 }
 
 #' @importFrom ggplot2 ggplotGrob
@@ -102,7 +115,7 @@ patch.gList <- function(x, ...) {
 #' @family patch methods
 #' @export
 patch.ggplot <- function(x, ...) {
-    ggplotGrob(x)
+    ggplotGrob(x, ...)
 }
 
 #' @inherit patch.grob
@@ -113,7 +126,7 @@ patch.ggplot <- function(x, ...) {
 #' @family patch methods
 #' @export
 patch.patch_ggplot <- function(x, ...) {
-    ggalignGrob(x)
+    ggalignGrob(x, ...)
 }
 
 #' @inherit patch.grob
@@ -121,7 +134,7 @@ patch.patch_ggplot <- function(x, ...) {
 #' @family patch methods
 #' @export
 patch.alignpatches <- function(x, ...) {
-    ggalignGrob(x)
+    ggalignGrob(x, ...)
 }
 
 #' @inherit patch.grob
@@ -130,7 +143,7 @@ patch.alignpatches <- function(x, ...) {
 #' @export
 patch.patchwork <- function(x, ...) {
     rlang::check_installed("patchwork", "to make grob from patchwork")
-    patchwork::patchworkGrob(x)
+    patchwork::patchworkGrob(x, ...)
 }
 
 #' @inherit patch.grob
@@ -139,7 +152,7 @@ patch.patchwork <- function(x, ...) {
 #' @export
 patch.patch <- function(x, ...) {
     rlang::check_installed("patchwork", "to make grob from patch")
-    patchwork::patchGrob(x)
+    patchwork::patchGrob(x, ...)
 }
 
 #' @inherit patch.grob
@@ -189,6 +202,7 @@ patch.function <- function(x, ..., device = NULL, name = NULL) {
 #' @export
 patch.recordedplot <- function(x, ..., device = NULL) {
     rlang::check_installed("gridGraphics", "to make grob from recordedplot")
+    rlang::check_dots_empty()
     gridGraphics::echoGrob(x, device = device %||% offscreen)
 }
 
@@ -224,7 +238,7 @@ patch.trellis <- function(x, ..., device = NULL) {
 patch.Heatmap <- function(x, ..., device = NULL) {
     rlang::check_installed(
         "ComplexHeatmap",
-        sprintf("to make grob from {%s} plot", obj_type_friendly(x))
+        sprintf("to make grob from %s plot", obj_type_friendly(x))
     )
     draw <- getFromNamespace("draw", "ComplexHeatmap")
     grid::grid.grabExpr(
@@ -245,4 +259,7 @@ patch.HeatmapAnnotation <- patch.HeatmapList
 #' @seealso [`pheatmap()`][pheatmap::pheatmap]
 #' @family patch methods
 #' @export
-patch.pheatmap <- function(x, ...) .subset2(x, "gtable")
+patch.pheatmap <- function(x, ...) {
+    rlang::check_dots_empty()
+    .subset2(x, "gtable")
+}

@@ -3,17 +3,17 @@
 #' @details
 #' `r lifecycle::badge('experimental')`
 #'
-#' The `align_reorder()` function differs from `align_order()` in that the `wts`
-#' argument in `align_order()` must return atomic weights for each observation.
-#' In contrast, the `stat` argument in `align_reorder()` can return more complex
-#' structures, such as [hclust][stats::hclust] or
+#' The `align_reorder()` function differs from `align_order()` in that the
+#' `weights` argument in `align_order()` must return atomic weights for each
+#' observation. In contrast, the `stat` argument in `align_reorder()` can
+#' return more complex structures, such as [hclust][stats::hclust] or
 #' [dendrogram][stats::as.dendrogram], among others.
 #'
 #' Typically, you can achieve the functionality of `align_reorder()` using
 #' `align_order()` by manually extracting the ordering information from
 #' the statistic.
 #'
-#' @param stat A summary function which accepts a data and returns the
+#' @param stat A statistical function which accepts a data and returns the
 #' statistic, which we'll call [`order2()`] to extract the ordering information.
 #' @param ... <[dyn-dots][rlang::dyn-dots]> Additional arguments passed to
 #' function provided in `stat` argument.
@@ -23,64 +23,106 @@
 #' transforming it as necessary for statistic calculations. By default, it will
 #' inherit from the layout matrix.
 #' @inheritParams align_order
-#' @return A `"AlignReorder"` object.
-#' @inheritSection align Axis Alignment for Observations
+#' @inheritSection align Discrete Axis Alignment
 #' @examples
 #' ggheatmap(matrix(rnorm(81), nrow = 9)) +
 #'     anno_left() +
 #'     align_reorder(hclust2)
 #' @seealso [order2()]
 #' @importFrom ggplot2 waiver
+#' @importFrom rlang list2
 #' @export
 align_reorder <- function(stat, ..., reverse = FALSE,
                           strict = TRUE, data = NULL,
-                          active = NULL, set_context = deprecated(),
-                          name = deprecated()) {
+                          active = NULL) {
     stat <- rlang::as_function(stat)
     assert_bool(strict)
     assert_bool(reverse)
     assert_active(active)
-    active <- update_active(active, new_active(
-        use = FALSE, order = NA_integer_, name = NA_character_
-    ))
-    active <- deprecate_active(active, "align_order",
-        set_context = set_context, name = name
-    )
+    active <- update_active(active, new_active(use = FALSE))
     align(
-        align_class = AlignReorder,
-        params = list(
-            stat = stat,
-            stat_params = rlang::list2(...),
-            reverse = reverse,
-            strict = strict
-        ),
+        align = AlignReorder,
+        stat = stat,
+        params = list2(...),
+        reverse = reverse,
+        strict = strict,
         active = active,
-        check.param = TRUE,
-        data = data %||% waiver()
+        data = data
     )
 }
 
 #' @importFrom ggplot2 ggproto
 #' @importFrom rlang inject
 AlignReorder <- ggproto("AlignReorder", Align,
-    compute = function(self, panel, index, stat, stat_params, strict) {
-        assert_reorder(self, panel, strict)
-        data <- .subset2(self, "data")
-        inject(stat(data, !!!stat_params))
+    interact_layout = function(self, layout) {
+        layout <- ggproto_parent(Align, self)$interact_layout(layout)
+        layout_data <- layout@data
+        if (is.null(input_data <- self$input_data) ||
+            is.waive(input_data)) { # inherit from the layout
+            if (is.null(data <- layout_data)) {
+                cli_abort(c(
+                    sprintf(
+                        "you must provide {.arg data} in %s",
+                        object_name(self)
+                    ),
+                    i = sprintf("no data was found in %s", self$layout_name)
+                ))
+            }
+        } else if (is.function(input_data)) {
+            if (is.null(layout_data)) {
+                cli_abort(c(
+                    sprintf(
+                        "{.arg data} in %s cannot be a function",
+                        object_name(self)
+                    ),
+                    i = sprintf("no data was found in %s", self$layout_name)
+                ))
+            }
+            data <- input_data(layout_data)
+        } else {
+            data <- input_data
+        }
+
+        design <- layout@design
+        layout_nobs <- .subset2(design, "nobs")
+
+        # we always regard rows as the observations
+        if (is.null(layout_nobs)) {
+            layout_nobs <- vec_size(data)
+            if (layout_nobs == 0L) {
+                cli_abort("{.arg data} cannot be empty", call = self$call)
+            }
+            design["nobs"] <- list(layout_nobs)
+            layout@design <- design
+        } else if (vec_size(data) != layout_nobs) {
+            cli_abort(sprintf(
+                "%s (nobs: %d) is not compatible with the %s (nobs: %d)",
+                object_name, vec_size(data), layout_name, layout_nobs
+            ))
+        }
+
+        # save the labels
+        self$labels <- vec_names(data) %||% vec_names(layout_data)
+        self$data <- ggalign_data_restore(data, layout_data)
+        layout
     },
-    layout = function(self, panel, index, reverse) {
+    compute = function(self, panel, index) {
+        inject(self$stat(self$data, !!!self$params))
+    },
+    align = function(self, panel, index) {
         index <- vec_cast(
-            order2(.subset2(self, "statistics")), integer(),
-            x_arg = "order2", call = .subset2(self, "call")
+            order2(self$statistics), integer(),
+            x_arg = "stat", call = self$call
         )
         assert_mismatch_nobs(
-            self, nrow(.subset2(self, "data")), length(index),
-            msg = "must return a statistic with",
+            self, vec_size(self$data), vec_size(index),
             arg = "stat"
         )
-        if (reverse) index <- rev(index)
+        if (self$reverse) index <- rev(index)
+        assert_reorder(self, panel, index, self$strict)
         list(panel, index)
-    }
+    },
+    summary_align = function(self) c(TRUE, FALSE)
 )
 
 #' Ordering Permutation
@@ -122,4 +164,11 @@ order2.ser_permutation <- function(x) {
         "seriation", "to extract order from `ser_permutation`"
     )
     getFromNamespace("get_order", "seriation")(x)
+}
+
+#' @export
+#' @rdname order2
+order2.phylo <- function(x) {
+    second <- x$edge[, 2L, drop = TRUE]
+    second[second <= length(x$tip.label)]
 }

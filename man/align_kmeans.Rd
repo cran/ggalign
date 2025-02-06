@@ -4,20 +4,9 @@
 \alias{align_kmeans}
 \title{Split observations by k-means clustering groups.}
 \usage{
-align_kmeans(
-  centers,
-  ...,
-  data = NULL,
-  active = NULL,
-  set_context = deprecated(),
-  name = deprecated()
-)
+align_kmeans(..., data = NULL, active = NULL)
 }
 \arguments{
-\item{centers}{either the number of clusters, say \eqn{k}, or a set of
-    initial (distinct) cluster centres.  If a number, a random set of
-    (distinct) rows in \code{x} is chosen as the initial centres.}
-
 \item{...}{
   Arguments passed on to \code{\link[stats:kmeans]{stats::kmeans}}
   \describe{
@@ -33,20 +22,11 @@ align_kmeans(
     produced.  Higher values may produce more tracing information.}
   }}
 
-\item{data}{A matrix-like object. By default, it inherits from the layout
-\code{matrix}.}
+\item{data}{A numeric matrix to be used by k-means. By default, it will
+inherit from the layout matrix.}
 
 \item{active}{A \code{\link[=active]{active()}} object that defines the context settings when
 added to a layout.}
-
-\item{set_context}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active}
-argument instead.}
-
-\item{name}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active} argument
-instead.}
-}
-\value{
-A \code{"AlignKmeans"} object.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
@@ -54,20 +34,12 @@ A \code{"AlignKmeans"} object.
 Aligns and groups observations based on k-means clustering, enabling
 observation splits by cluster groups.
 }
-\section{Axis Alignment for Observations}{
+\section{Discrete Axis Alignment}{
 
 It is important to note that we consider rows as observations, meaning
 \code{vec_size(data)}/\code{NROW(data)} must match the number of observations along the
 axis used for alignment (x-axis for a vertical stack layout, y-axis for a
 horizontal stack layout).
-\itemize{
-\item \code{\link[=quad_layout]{quad_layout()}}/\code{\link[=ggheatmap]{ggheatmap()}}: For column annotation, the layout
-\code{matrix} will be transposed before use (if \code{data} is a function, it is
-applied to the transposed matrix), as column annotation uses columns as
-observations but alignment requires rows.
-\item \code{\link[=stack_layout]{stack_layout()}}: The layout matrix is used as is, aligning all plots
-along a single axis.
-}
 }
 
 \examples{

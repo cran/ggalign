@@ -47,7 +47,7 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
 
         # filter `plots` based on the design areas --------------------
         if (vec_size(design) < vec_size(patches)) {
-            cli::cli_warn(
+            cli_warn(
                 "Too few patch areas to hold all plots. Dropping plots"
             )
             plots <- vec_slice(patches, vec_seq_along(design))
@@ -363,17 +363,17 @@ PatchAlignpatches <- ggproto("PatchAlignpatches", Patch,
             ))
 
             # then we add the plot ---------------------------------
-            gt <- gtable_add_grob(gt,
-                list(.subset2(grobs, "plot")), t, l, b, r,
-                name = paste("plot", i, sep = "-"), z = 2L
+            gt <- patch$add_plot(
+                gt, .subset2(grobs, "plot"), t, l, b, r,
+                name = paste("plot", i, sep = "-")
             )
 
             # add background grob ----------------------------------
             if (!is.null(bg <- .subset2(grobs, "bg"))) {
                 # we always add background in the beginning --------
-                gt <- gtable_add_grob(gt, bg, t, l, b, r,
-                    name = paste("plot", i, "background", sep = "-"),
-                    z = 1L
+                gt <- patch$add_background(
+                    gt, bg, t, l, b, r,
+                    name = paste("plot", i, "background", sep = "-")
                 )
             }
 
@@ -597,9 +597,8 @@ table_sizes <- function(sizes, design, ncol, nrow) {
         convertHeight(.subset2(size, "heights"), "mm", valueOnly = TRUE)
     })
     heights <- vapply(seq_len(nrow * TABLE_ROWS), function(i) {
-        area_row <- (i - 1L) %/% TABLE_ROWS + 1L
-        row_loc <- i %% TABLE_ROWS
-        if (row_loc == 0L) row_loc <- TABLE_ROWS
+        area_row <- recycle_each(i, TABLE_ROWS)
+        row_loc <- recycle_whole(i, TABLE_ROWS)
         area_side <- if (row_loc <= TOP_BORDER + 1L) "t" else "b"
         idx <- field(design, area_side) == area_row
         if (any(idx)) {

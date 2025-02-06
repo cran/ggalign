@@ -11,6 +11,7 @@ quad_switch(
   width = NULL,
   height = NULL,
   free_guides = waiver(),
+  initialize = NULL,
   what = waiver()
 )
 
@@ -20,13 +21,8 @@ hmanno(
   width = NULL,
   height = NULL,
   free_guides = waiver(),
-  what = waiver(),
-  ...,
-  guides = deprecated(),
-  free_spaces = deprecated(),
-  plot_data = deprecated(),
-  theme = deprecated(),
-  free_labs = deprecated()
+  initialize = NULL,
+  what = waiver()
 )
 }
 \arguments{
@@ -48,25 +44,14 @@ annotation.
 \item{free_guides}{Override the \code{guides} collection behavior specified in the
 \code{\link[=quad_layout]{quad_layout()}}/\code{\link[=ggheatmap]{ggheatmap()}} for the annotation stack.}
 
+\item{initialize}{A boolean indicating whether the annotation stack should be
+initialized if it is not already. By default, the annotation stack layout
+will attempt to initialize when the data is compatible. If set to \code{TRUE}, and
+the data in \code{\link[=quad_layout]{quad_layout()}}/\code{\link[=ggheatmap]{ggheatmap()}} is incompatible with the annotation stack, no
+data will be used in the stack.}
+
 \item{what}{What should get activated in the annotation stack?
-A single number or string of the plot elements in the stack layout. If \code{NULL}, will remove any active context.}
-
-\item{...}{These dots are for future extensions and must be empty.}
-
-\item{guides}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_align]{plot_align()}} function instead.}
-
-\item{free_spaces}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_align]{plot_align()}} function instead.}
-
-\item{plot_data}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_data]{plot_data()}} function instead.}
-
-\item{theme}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_theme]{plot_theme()}} function instead.}
-
-\item{free_labs}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_align]{plot_align()}} function instead.}
+A single number or string of the plot elements in the layout. If \code{NULL}, will remove any active context.}
 }
 \value{
 An object that can be added to \code{\link[=quad_layout]{quad_layout()}}/\code{\link[=ggheatmap]{ggheatmap()}}.
@@ -87,8 +72,5 @@ ggheatmap(matrix(rnorm(81), nrow = 9)) +
     align_dendro()
 }
 \seealso{
-\itemize{
-\item \code{\link[=quad_active]{quad_active()}}/\code{\link[=quad_anno]{quad_anno()}}
-\item \code{\link[=quad_init]{quad_init()}}
-}
+\code{\link[=quad_active]{quad_active()}}/\code{\link[=quad_anno]{quad_anno()}}
 }

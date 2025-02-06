@@ -6,6 +6,8 @@ grid::gpar
 #' @export
 grid::unit
 
+is.gList <- function(x) inherits(x, "gList")
+
 #' @importFrom grid unitType absolute.size
 is_absolute_unit <- function(x) {
     unitType(absolute.size(x)) != "null"
@@ -80,4 +82,39 @@ grob_in_area <- function(gt, top, right, bottom, left) {
         .subset2(.subset2(gt, "layout"), "t") >= top &
         .subset2(.subset2(gt, "layout"), "r") <= right &
         .subset2(.subset2(gt, "layout"), "b") <= bottom
+}
+
+compute_null_width <- function(x, unitTo = "mm", valueOnly = FALSE) {
+    compute_null_unit(x, "width", unitTo = unitTo, valueOnly = valueOnly)
+}
+
+compute_null_height <- function(x, unitTo = "mm", valueOnly = FALSE) {
+    compute_null_unit(x, "height", unitTo = unitTo, valueOnly = valueOnly)
+}
+
+#' @importFrom grid unit convertHeight convertWidth
+compute_null_unit <- function(x, type = c("width", "height"), unitTo = "mm",
+                              valueOnly = FALSE) {
+    null <- is_null_unit(x) # null unit
+    if (type == "width") {
+        ans <- convertWidth(x, unitTo, valueOnly = TRUE)
+        total <- convertWidth(unit(1, "npc"),
+            unitTo = unitTo, valueOnly = TRUE
+        )
+    } else {
+        ans <- convertHeight(x, unitTo, valueOnly = TRUE)
+        total <- convertHeight(unit(1, "npc"),
+            unitTo = unitTo, valueOnly = TRUE
+        )
+    }
+    if (any(null)) {
+        null_size <- total - sum(ans[!null])
+        # other units in the same row/ column also have unit null
+        coef <- as.numeric(x[null])
+        ans[null] <- (null_size / sum(coef)) * coef
+    }
+    if (isTRUE(valueOnly)) {
+        return(ans)
+    }
+    unit(ans, unitTo)
 }

@@ -95,40 +95,43 @@ free_align.ggplot <- function(plot, axes = "tlbr") {
 #' @export
 free_align.alignpatches <- free_align.ggplot
 
+#' @importFrom rlang is_empty
 #' @export
 free_align.free_lab <- function(plot, axes = "tlbr") {
     assert_position(axes)
     # if axes are free, it's not necessary to free the labs
     free_labs <- setdiff_position(attr(plot, "free_labs"), axes)
-    if (length(free_labs) == 0L) {
+    if (is_empty(free_labs)) {
         attr(plot, "free_labs") <- NULL
-        class(plot) <- vec_set_difference(class(plot), "free_lab")
+        plot <- remove_class(plot, "free_lab")
     } else {
         attr(plot, "free_labs") <- free_labs
     }
     NextMethod()
 }
 
+#' @importFrom rlang is_empty
 #' @export
 free_align.free_space <- function(plot, axes = "tlbr") {
     assert_position(axes)
     free_spaces <- setdiff_position(attr(plot, "free_spaces"), axes)
-    if (length(free_spaces) == 0L) {
+    if (is_empty(free_spaces)) {
         attr(plot, "free_spaces") <- NULL
-        class(plot) <- vec_set_difference(class(plot), "free_space")
+        plot <- remove_class(plot, "free_space")
     } else {
         attr(plot, "free_spaces") <- free_spaces
     }
     NextMethod()
 }
 
+#' @importFrom rlang is_empty
 #' @export
 free_align.free_border <- function(plot, axes = "tlbr") {
     assert_position(axes)
     free_borders <- setdiff_position(attr(plot, "free_borders"), axes)
-    if (length(free_borders) == 0L) {
+    if (is_empty(free_borders)) {
         attr(plot, "free_borders") <- NULL
-        class(plot) <- vec_set_difference(class(plot), "free_border")
+        plot <- remove_class(plot, "free_border")
     } else {
         attr(plot, "free_borders") <- free_borders
     }
@@ -144,7 +147,7 @@ free_align.free_align <- function(plot, axes = "tlbr") {
 
 #' @export
 free_align.default <- function(plot, axes = "tlbr") {
-    cli::cli_abort("Cannot use with {.obj_type_friendly {plot}}")
+    cli_abort("Cannot use with {.obj_type_friendly {plot}}")
 }
 
 #' @importFrom ggplot2 ggproto ggproto_parent

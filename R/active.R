@@ -28,12 +28,17 @@ active <- function(order = waiver(), use = waiver(), name = waiver()) {
     if (!is.waive(order)) order <- check_order(order)
     if (!is.waive(use)) assert_bool(use)
     if (!is.waive(name)) {
-        assert_string(name, empty_ok = FALSE, allow_na = TRUE, allow_null = FALSE)
+        assert_string(name,
+            empty_ok = FALSE, allow_na = TRUE,
+            allow_null = FALSE
+        )
     }
-    new_active(order, use, name)
+    new_active(order = order, use = use, name = name)
 }
 
-new_active <- function(order, use, name) {
+# for internal function, we only adjust to the `use` argument
+# here, we put it in the first
+new_active <- function(use, order = NA_integer_, name = NA_character_) {
     structure(
         list(order = order, use = use, name = name),
         class = "ggalign_active"
@@ -47,38 +52,4 @@ update_active <- function(active, default) {
         active[!vapply(active, is.waive, logical(1L), USE.NAMES = FALSE)],
         keep.null = TRUE
     )
-}
-
-deprecate_active <- function(active, fun,
-                             set_context = deprecated(),
-                             order = deprecated(), name = deprecated(),
-                             call = caller_call()) {
-    if (lifecycle::is_present(set_context)) {
-        lifecycle::deprecate_warn(
-            "0.0.5",
-            sprintf("%s(set_context)", fun),
-            sprintf("%s(active)", fun)
-        )
-        assert_bool(set_context, call = call)
-        active["use"] <- list(set_context)
-    }
-    if (lifecycle::is_present(order)) {
-        lifecycle::deprecate_warn(
-            "0.0.5",
-            sprintf("%s(order)", fun),
-            sprintf("%s(active)", fun)
-        )
-        order <- check_order(order, call = call)
-        active["order"] <- list(order)
-    }
-    if (lifecycle::is_present(name)) {
-        lifecycle::deprecate_warn(
-            "0.0.5",
-            sprintf("%s(name)", fun),
-            sprintf("%s(active)", fun)
-        )
-        assert_string(name, empty_ok = FALSE, allow_na = TRUE, call = call)
-        active["name"] <- list(name)
-    }
-    active
 }

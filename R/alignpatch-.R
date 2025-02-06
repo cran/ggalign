@@ -67,12 +67,13 @@ union_position <- function(x, y) paste0(x, gsub(sprintf("[%s]", x), "", y))
 split_position <- function(x) {
     vec_unique(.subset2(strsplit(x, "", fixed = TRUE), 1L))
 }
-setup_pos <- function(x) {
-    complete_pos(split_position(x))
-}
+
+setup_pos <- function(x) complete_pos(split_position(x))
+
 complete_pos <- function(x) {
     .subset(c(t = "top", l = "left", b = "bottom", r = "right"), x)
 }
+
 opposite_pos <- function(pos) {
     switch(pos,
         top = "bottom",
@@ -100,7 +101,7 @@ make_patch_table <- function() {
 #' Generate a plot grob.
 #'
 #' @param x An object to be converted into a [grob][grid::grob].
-#' @return A [grob()][grid::grob] object.
+#' @return A [`grob()`][grid::grob] object.
 #' @examples
 #' ggalignGrob(ggplot())
 #' @export
@@ -114,35 +115,39 @@ ggalign_build <- function(x) UseMethod("ggalign_build")
 
 ggalign_gtable <- function(x) UseMethod("ggalign_gtable")
 
+#' @export
+ggalign_gtable.gtable <- function(x) x
+
 #' Prepare plots to be aligned with `align_plots`
 #'
 #' @param x A plot object to be prepared for alignment.
+#' @details
 #' `ggalign` has implement `alignpatch` method for following objects:
-#'   - [ggplot][ggplot2::ggplot]
-#'   - [alignpatches][align_plots]
-#'   - [wrapped_plot][ggwrap]
-#'   - [patch][patchwork::patchGrob]
-#'   - [wrapped_patch][patchwork::wrap_elements]
-#'   - [spacer][patchwork::plot_spacer]
+#'   - [`ggplot`][ggplot2::ggplot]
+#'   - [`alignpatches`][align_plots]
+#'   - [`wrapped_plot`][ggwrap]
+#'   - [`patch`][patchwork::patchGrob]
+#'   - [`wrapped_patch`][patchwork::wrap_elements]
+#'   - [`spacer`][patchwork::plot_spacer]
 #'
 #' @return A `Patch` object.
 #' @examples
 #' alignpatch(ggplot())
-#' @seealso [align_plots]
+#' @seealso [`align_plots()`]
 #' @export
 #' @keywords internal
 alignpatch <- function(x) UseMethod("alignpatch")
 
 #' @export
 alignpatch.default <- function(x) {
-    cli::cli_abort("Cannot align {.obj_type_friendly {x}}")
+    cli_abort("Cannot align {.obj_type_friendly {x}}")
 }
 
 #' @export
 alignpatch.NULL <- function(x) NULL
 
 abort_no_method <- function(plot, method) {
-    cli::cli_abort("no {.fn {method}} method for {.obj_type_friendly {plot}}")
+    cli_abort("no {.fn {method}} method for {.obj_type_friendly {plot}}")
 }
 
 #' @importFrom ggplot2 ggproto
@@ -277,6 +282,22 @@ Patch <- ggproto(c("Patch", "ggalign"), NULL,
             plot <- gt
         }
         list(bg = bg, plot = plot)
+    },
+    add_plot = function(self, gt, plot, t, l, b, r, name, z = 2L) {
+        gtable_add_grob(
+            gt,
+            grobs = plot,
+            t = t, l = l, b = b, r = r,
+            name = name, z = z
+        )
+    },
+    add_background = function(self, gt, bg, t, l, b, r, name, z = 1L) {
+        gtable_add_grob(
+            gt,
+            grobs = bg,
+            t = t, l = l, b = b, r = r,
+            name = name, z = z
+        )
     },
     free_border = function(self, borders, gt = self$gt) {
         abort_no_method(self$plot, "free_border")

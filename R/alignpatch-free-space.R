@@ -10,7 +10,7 @@ free_space <- function(plot, spaces = "tlbr") {
 
 #' @export
 free_space.default <- function(plot, spaces = "tlbr") {
-    cli::cli_abort("Cannot use with {.obj_type_friendly {plot}}")
+    cli_abort("Cannot use with {.obj_type_friendly {plot}}")
 }
 
 #' @export
@@ -27,7 +27,7 @@ free_space.alignpatches <- free_space.ggplot
 free_space.free_align <- function(plot, spaces = "tlbr") {
     assert_position(spaces)
     spaces <- setdiff_position(spaces, attr(plot, "free_axes"))
-    if (nchar(spaces) == 0L) {
+    if (!nzchar(spaces)) {
         return(plot)
     }
     NextMethod()

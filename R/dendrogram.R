@@ -36,7 +36,7 @@ hclust2 <- function(matrix, distance = "euclidean", method = "complete",
         ans <- try_fetch(
             stats::as.hclust(method),
             error = function(cnd) {
-                cli::cli_abort(paste(
+                cli_abort(paste(
                     "{.arg method} can only be a {.cls string},",
                     "{.cls function} or an object which can be coerced to",
                     "{.cls hclust}."
@@ -57,7 +57,7 @@ hclust2 <- function(matrix, distance = "euclidean", method = "complete",
         ans <- try_fetch(
             stats::as.hclust(ans),
             error = function(cnd) {
-                cli::cli_abort(paste(
+                cli_abort(paste(
                     "{.arg method} must return an object which",
                     "can be coerced to {.cls hclust}"
                 ), parent = cnd)
@@ -68,11 +68,12 @@ hclust2 <- function(matrix, distance = "euclidean", method = "complete",
     ans
 }
 
+#' @importFrom rlang arg_match0
 make_dist <- function(matrix, distance, use_missing,
                       arg = caller_arg(distance), call = caller_call()) {
     distance <- allow_lambda(distance)
     if (is_string(distance)) {
-        distance <- rlang::arg_match0(distance, c(
+        distance <- arg_match0(distance, c(
             "euclidean", "maximum", "manhattan", "canberra",
             "binary", "minkowski", "pearson", "spearman", "kendall"
         ), arg_nm = arg, error_call = call)
@@ -88,13 +89,11 @@ make_dist <- function(matrix, distance, use_missing,
             kendall = stats::as.dist(
                 1 - stats::cor(t(matrix), use = use_missing, method = distance)
             ),
-            cli::cli_abort("Unsupported {.arg {arg}} method specified",
-                call = call
-            )
+            cli_abort("Unsupported {.arg {arg}} specified", call = call)
         )
     } else if (is.function(distance)) {
         if (!inherits(d <- distance(matrix), "dist")) {
-            cli::cli_abort(
+            cli_abort(
                 "{.arg {arg}} must return a {.cls dist} object",
                 call = call
             )
@@ -102,7 +101,7 @@ make_dist <- function(matrix, distance, use_missing,
     } else if (inherits(distance, "dist")) {
         d <- distance
     } else {
-        cli::cli_abort(paste(
+        cli_abort(paste(
             "{.arg {arg}} can only be a {.cls string}, {.cls dist}",
             "object, or a {.cls function} return {.cls dist}"
         ), call = call)
@@ -110,76 +109,93 @@ make_dist <- function(matrix, distance, use_missing,
     d
 }
 
-#' Dengrogram x and y coordinates
+#' @inherit fortify_data_frame.default title description
 #'
-#' @param tree A [hclust][stats::hclust] or a [dendrogram][stats::as.dendrogram]
-#' object.
-#' @param priority A string of "left" or "right". if we draw from right to left,
-#' the left will override the right, so we take the `"left"` as the priority. If
-#' we draw from `left` to `right`, the right will override the left, so we take
-#' the `"right"` as priority. This is used by [align_dendro()] to provide
-#' support of facet operation in ggplot2.
+#' @param data A [`hclust`][stats::hclust] or a
+#' [`dendrogram`][stats::as.dendrogram] object.
 #' @param center A boolean value. if `TRUE`, nodes are plotted centered with
-#' respect to the leaves in the branch. Otherwise (default), plot them in the
-#' middle of all direct child nodes.
+#' respect to all leaves/tips in the branch. Otherwise (default), plot them in
+#' the middle of the direct child nodes.
 #' @param type A string indicates the plot type, `"rectangle"` or `"triangle"`.
 #' @param leaf_pos The x-coordinates of the leaf node. Must be the same length
 #' of the number of observations in `tree`.
 #' @param leaf_braches Branches of the leaf node. Must be the same length of the
 #' number of observations in `tree`. Usually come from [cutree][stats::cutree].
 #' @param reorder_branches A single boolean value, indicates whether reorder the
-#' provided leaf_braches based on the actual index.
+#' provided `leaf_braches` based on the actual index.
 #' @param branch_gap A single numeric value indicates the gap between different
 #' branches.
 #' @param root A length one string or numeric indicates the root branch.
-#' @return A list of 2 data.frame. One for node coordinates, another for edge
-#' coordinates.
-#' `node` and tree segments `edge` coordinates contains following columns:
-#'   - `index`: the original index in the tree for the current node
-#'   - `label`: node label text
-#'   - `x` and `y`: x-axis and y-axis coordinates for current node or the start
-#'                  node of the current edge.
-#'   - `xend` and `yend`: the x-axis and y-axis coordinates of the terminal node
-#'                        for current edge.
-#'   - `branch`: which branch current node or edge is. You can use this column
-#'               to color different groups.
-#'   - `panel`: which panel current node is, if we split the plot into panel
-#'              using [facet_grid][ggplot2::facet_grid], this column will show
-#'              which panel current node or edge is from. Note: some nodes may
-#'              fall outside panel (between two panels), so there are possible
-#'              `NA` values in this column.
+#' @param priority A string of "left" or "right". if we draw from `right` to
+#' `left`, the left will override the right, so we take the `"left"` as the
+#' priority. If we draw from `left` to `right`, the right will override the
+#' left, so we take the `"right"` as priority. This is used by
+#' [`align_dendro()`] to provide support of facet operation in ggplot2.
+#' @param double A single logical value indicating whether horizontal lines
+#' should be doubled when segments span multiple branches. If `TRUE`, the
+#' horizontal lines will be repeated for each branch that the segment spans. If
+#' `FALSE`, only one horizontal line will be drawn. This is used by
+#' [`align_dendro()`] to provide support of facet operation in ggplot2.
+#' @inheritParams fortify_data_frame
+#' @return A `data frame` with the node coordinates:
 #'   - `.panel`: Similar with `panel` column, but always give the correct
 #'              branch for usage of the ggplot facet.
-#'   - `panel1` and `panel2`: The panel1 and panel2 variables have the same
+#'   - `.index`: the original index in the tree for the the node
+#'   - `label`: node label text
+#'   - `x` and `y`: x-axis and y-axis coordinates for the node
+#'   - `branch`: which branch the node is. You can use this column to color
+#'               different groups.
+#'   - `panel`: which panel the node is, if we split the plot into panel
+#'              using [facet_grid][ggplot2::facet_grid], this column will show
+#'              which panel the node is from. Note: some nodes may
+#'              fall outside panel (between two panels), so there are possible
+#'              `NA` values in this column.
+#'   - `leaf`: A logical value indicates whether the node is a leaf.
+#' @section ggalign attributes:
+#'  `edge`: A `data frame` for edge coordinates:
+#'  - `.panel`: Similar with `panel` column, but always give the correct
+#'              branch for usage of the ggplot facet.
+#'  - `x` and `y`: x-axis and y-axis coordinates for the start node of the edge.
+#'  - `xend` and `yend`: the x-axis and y-axis coordinates of the terminal node
+#'                       for edge.
+#'  - `branch`: which branch the edge is. You can use this column to color
+#'              different groups.
+#'  - `panel1` and `panel2`: The panel1 and panel2 columns have the same
 #'     functionality as `panel`, but they are specifically for the `edge` data
 #'     and correspond to both nodes of each edge.
-#'   - `leaf`: A logical value indicates whether current node is a leaf.
 #' @examples
-#' dendrogram_data(hclust(dist(USArrests), "ave"))
+#' fortify_data_frame(hclust(dist(USArrests), "ave"))
 #' @importFrom grid is.unit
 #' @importFrom stats order.dendrogram
+#' @importFrom rlang arg_match0
+#' @family fortify_data_frame methods
 #' @export
-dendrogram_data <- function(tree,
-                            priority = "right",
-                            center = FALSE,
-                            type = "rectangle",
-                            leaf_pos = NULL,
-                            leaf_braches = NULL,
-                            reorder_branches = TRUE,
-                            branch_gap = NULL,
-                            root = NULL) {
-    dend <- check_dendrogram(tree)
-    assert_bool(center)
-    assert_bool(reorder_branches)
-    type <- match.arg(type, c("rectangle", "triangle"))
-    priority <- match.arg(priority, c("left", "right"))
-    N <- stats::nobs(dend)
+fortify_data_frame.dendrogram <- function(data, ...,
+                                          priority = "right",
+                                          center = FALSE,
+                                          type = "rectangle",
+                                          leaf_pos = NULL,
+                                          leaf_braches = NULL,
+                                          reorder_branches = TRUE,
+                                          branch_gap = NULL,
+                                          root = NULL,
+                                          double = TRUE,
+                                          data_arg = caller_arg(data),
+                                          call = NULL) {
+    call <- call %||% current_call()
+    rlang::check_dots_empty(call = call)
+    assert_bool(center, call = call)
+    assert_bool(reorder_branches, call = call)
+    type <- arg_match0(type, c("rectangle", "triangle"), error_call = call)
+    priority <- arg_match0(priority, c("left", "right"), error_call = call)
+    N <- stats::nobs(data)
     rectangle <- type == "rectangle"
     if (is.null(leaf_pos)) {
         leaf_pos <- seq_len(N)
     } else if (length(leaf_pos) != N) {
-        cli::cli_abort(
-            "{.arg leaf_pos} must be of the same length of {.arg tree}"
+        cli_abort(
+            "{.arg leaf_pos} must be of the same length of {.arg tree}",
+            call = call
         )
     }
 
@@ -187,10 +203,13 @@ dendrogram_data <- function(tree,
     if (is.null(leaf_braches)) {
         root <- root %||% "root"
     } else if (anyNA(leaf_braches)) {
-        cli::cli_abort("`NA` is not allowed in {.arg leaf_braches}")
+        cli_abort("`NA` is not allowed in {.arg leaf_braches}",
+            call = call
+        )
     } else if (length(leaf_braches) != N) {
-        cli::cli_abort(
-            "{.arg leaf_braches} must be of the same length of {.arg tree}"
+        cli_abort(
+            "{.arg leaf_braches} must be of the same length of {.arg tree}",
+            call = call
         )
     } else if (is.character(leaf_braches)) {
         root <- root %||% "root"
@@ -200,33 +219,39 @@ dendrogram_data <- function(tree,
     } else if (is.numeric(leaf_braches)) {
         root <- root %||% (min(leaf_braches) - 1L)
     } else {
-        cli::cli_abort("{.arg leaf_braches} must be a character or numeric")
+        cli_abort("{.arg leaf_braches} must be a character or numeric",
+            call = call
+        )
     }
 
     if (!is.null(leaf_braches) && reorder_branches) {
-        leaf_braches <- .subset(leaf_braches, order.dendrogram(dend))
+        leaf_braches <- .subset(leaf_braches, order.dendrogram(data))
     }
 
-    # branch_gap must be a numeric value
-    # and the length must be equal to `length(unique(leaf_braches)) - 1L`
+    # check `branch_gap`
     if (is.numeric(branch_gap)) {
         if (!is_scalar(branch_gap)) {
-            cli::cli_abort("{.arg branch_gap} must be of length 1")
+            cli_abort("{.arg branch_gap} must be of length 1",
+                call = call
+            )
         }
     } else if (is.null(branch_gap)) {
         branch_gap <- 0
     } else {
-        cli::cli_abort("{.arg branch_gap} must be numeric value.")
+        cli_abort("{.arg branch_gap} must be numeric value.",
+            call = call
+        )
     }
 
     # the root value shouldn't be the same of leaf branches.
     if (!is_scalar(root)) {
-        cli::cli_abort("{.arg root} must be of length 1")
+        cli_abort("{.arg root} must be of length 1", call = call)
     } else if (anyNA(root)) {
-        cli::cli_abort("{.arg root} cannot be `NA`")
+        cli_abort("{.arg root} cannot be `NA`", call = call)
     } else if (any(root == leaf_braches)) {
-        cli::cli_abort(
-            "{.arg root} cannot contain value in {.arg leaf_braches}"
+        cli_abort(
+            "{.arg root} cannot contain value in {.arg leaf_braches}",
+            call = call
         )
     }
 
@@ -235,7 +260,7 @@ dendrogram_data <- function(tree,
     branch_levels <- NULL
     last_branch <- root
     total_gap <- 0
-    .dendrogram_data <- function(dend, from_root = TRUE) {
+    dendrogram_data <- function(dend, from_root = TRUE) {
         if (stats::is.leaf(dend)) { # base version
             index <- as.integer(dend) # the column index of the original data
             y <- attr(dend, "height") %||% 0
@@ -261,11 +286,12 @@ dendrogram_data <- function(tree,
                 index = index, label = label,
                 x = x, y = y, branch = branch,
                 leaf = TRUE, panel = branch,
-                .panel = branch
+                ggpanel = branch
             )
             list(
                 # current node
                 node = node, edge = NULL,
+                # current node information
                 x = x, y = y,
                 branch = branch,
                 panel = branch,
@@ -277,7 +303,7 @@ dendrogram_data <- function(tree,
 
             # for the children nodes ---------------------------------
             data <- list_transpose(
-                lapply(dend, .dendrogram_data, from_root = FALSE)
+                lapply(dend, dendrogram_data, from_root = FALSE)
             )
 
             # node should be the direct children
@@ -312,7 +338,17 @@ dendrogram_data <- function(tree,
             # all x coordinate for children nodes --------------------
             # used if center is `TRUE`, we'll calculate the center position
             # among all children nodes
-            leaves <- node[.subset2(node, "leaf"), ]
+            leaves <- vec_slice(node, .subset2(node, "leaf")) # all leaves
+
+            # we assign the `panel` for current branch node
+            ranges <- split(
+                .subset2(leaves, "x"),
+                .subset2(leaves, "panel")
+            )
+            ranges <- ranges[
+                order(vapply(ranges, min, numeric(1L), USE.NAMES = FALSE))
+            ]
+            full_panel <- names(ranges)
 
             # x coordinate for current branch: the midpoint
             if (center) {
@@ -320,21 +356,16 @@ dendrogram_data <- function(tree,
             } else {
                 x <- sum(direct_leaves_x) / 2L
             }
-            if (is.null(leaf_braches)) { # only one panel
+            if (is.null(leaf_braches)) { # no branches
                 ggpanel <- panel <- branch <- root
             } else {
+                # we assign the branch for current branch node
                 branch <- unique(direct_leaves_branch)
                 # if two children leaves are different, this branch should be
                 # `root`, this is often used to color the segments
                 if (length(branch) > 1L) branch <- root
-                ranges <- split(
-                    .subset2(leaves, "x"),
-                    .subset2(leaves, "panel")
-                )
-                ranges <- ranges[
-                    order(vapply(ranges, min, numeric(1L), USE.NAMES = FALSE))
-                ]
-                full_panel <- names(ranges)
+
+                # we assign the `panel` for current branch node
                 panel <- NA
                 for (i in seq_along(ranges)) {
                     if (x < min(.subset2(ranges, i))) {
@@ -345,6 +376,8 @@ dendrogram_data <- function(tree,
                         break
                     }
                 }
+                # if the node is between two panels, no panel
+                # we choose the priority
                 if (is.na(ggpanel <- panel)) {
                     # it's not possible for an branch node live outside the
                     # all panels - the left or right most. So `i` won't be 1 or
@@ -361,7 +394,7 @@ dendrogram_data <- function(tree,
                 node <- vec_rbind(node, data_frame0(
                     index = NA, label = NA,
                     x = x, y = y, branch = branch, leaf = FALSE,
-                    panel = panel, .panel = ggpanel
+                    panel = panel, ggpanel = ggpanel
                 ))
             }
 
@@ -376,92 +409,46 @@ dendrogram_data <- function(tree,
                     branch = direct_leaves_branch,
                     panel1 = direct_leaves_panel,
                     panel2 = direct_leaves_panel,
-                    .panel = direct_leaves_ggpanel
+                    ggpanel = direct_leaves_ggpanel
                 )
                 # 2 horizontal lines
-                # we double the left line and the right line when a node is not
-                # in a panel, or the edge spaned across different panels.
-                if (anyNA(direct_leaves_panel) ||
-                    .subset(direct_leaves_panel, 1L) !=
-                        .subset(direct_leaves_panel, 2L)
-                ) {
-                    # we draw from right to left, the left will override
-                    # the right, so we take the left as priority
-                    # we draw from left to right, the right will override
-                    # the left, so we take the right as priority
-                    i <- switch(priority, left = 1L, right = 2L) # styler: off
-                    horizontal_lines <- data_frame0(
-                        # here is the 4 horizontal lines
-                        # i = 1
-                        # from the right - midpoint
-                        # from the midpoint - right
-                        # from left - midpoint
-                        # from midpoint - left
-                        #
-                        # i = 2
-                        # from the left - midpoint
-                        # from the midpoint - left
-                        # from right - midpoint
-                        # from midpoint - right
-                        x = c(
-                            .subset(direct_leaves_x, 3L - i),
-                            x,
-                            .subset(direct_leaves_x, i),
-                            x
-                        ),
-                        xend = c(
-                            x, .subset(direct_leaves_x, 3L - i),
-                            x, .subset(direct_leaves_x, i)
-                        ),
-                        y = rep_len(y, 4L),
-                        yend = rep_len(y, 4L),
-                        branch = c(
-                            rep_len(.subset(direct_leaves_branch, 3L - i), 2L),
-                            rep_len(.subset(direct_leaves_branch, i), 2L)
-                        ),
-                        panel1 = c(
-                            .subset(direct_leaves_panel, 3L - i),
-                            panel,
-                            .subset(direct_leaves_panel, i),
-                            panel
-                        ),
-                        panel2 = c(
-                            panel,
-                            .subset(direct_leaves_panel, 3L - i),
-                            panel,
-                            .subset(direct_leaves_panel, i)
-                        ),
-                        .panel = c(
-                            .subset(direct_leaves_ggpanel, 3L - i),
-                            ggpanel,
-                            .subset(direct_leaves_ggpanel, i),
-                            ggpanel
-                        )
+                # if the horizontal lines spanned multiple panels
+                # we double the left line and the right line
+                added_edge <- vec_rbind(
+                    vertical_lines,
+                    # left horizontal line
+                    make_horizontal(
+                        c(direct_leaves_x[1L], x),
+                        panels = c(direct_leaves_panel[1L], panel),
+                        ggpanels = c(direct_leaves_ggpanel[1L], ggpanel),
+                        y = y,
+                        branch = direct_leaves_branch[1L],
+                        ranges = ranges,
+                        full_panel = full_panel,
+                        double = double
+                    ),
+                    # right horizontal line
+                    make_horizontal(
+                        c(x, direct_leaves_x[2L]),
+                        panels = c(panel, direct_leaves_panel[2L]),
+                        ggpanels = c(ggpanel, direct_leaves_ggpanel[2L]),
+                        y = y,
+                        branch = direct_leaves_branch[2L],
+                        ranges = ranges,
+                        full_panel = full_panel,
+                        double = double
                     )
-                } else {
-                    horizontal_lines <- data_frame0(
-                        # 2 horizontal lines
-                        x = rep_len(x, 2L),
-                        xend = direct_leaves_x,
-                        y = rep_len(y, 2L),
-                        yend = rep_len(y, 2L),
-                        branch = direct_leaves_branch,
-                        panel1 = rep_len(panel, 2L),
-                        panel2 = direct_leaves_panel,
-                        .panel = rep_len(ggpanel, 2L)
-                    )
-                }
-                added_edge <- vec_rbind(vertical_lines, horizontal_lines)
+                )
             } else {
                 added_edge <- data_frame0(
                     x = rep_len(x, 2L),
                     xend = direct_leaves_x,
-                    y = direct_leaves_y,
-                    yend = rep_len(y, 2L),
+                    y = rep_len(y, 2L),
+                    yend = direct_leaves_y,
                     branch = direct_leaves_branch,
                     panel1 = rep_len(panel, 2L),
                     panel2 = direct_leaves_panel,
-                    .panel = rep_len(ggpanel, 2L)
+                    ggpanel = rep_len(ggpanel, 2L)
                 )
             }
             if (is.null(edge)) {
@@ -475,10 +462,12 @@ dendrogram_data <- function(tree,
                 panel = panel, ggpanel = ggpanel
             )
         } else {
-            cli::cli_abort("{.arg dend} must be a {.cls dendrogram} object")
+            cli_abort("Invalid {.cls dendrogram} provided in {.arg {data_arg}}",
+                call = call
+            )
         }
     }
-    ans <- .dendrogram_data(dend)
+    ans <- dendrogram_data(data)
     node <- .subset2(ans, "node")
     edge <- .subset2(ans, "edge")
 
@@ -487,14 +476,76 @@ dendrogram_data <- function(tree,
     branch_levels <- c(branch_levels, root)
     node$panel <- factor(.subset2(node, "panel"), panel_levels)
     node$branch <- factor(.subset2(node, "branch"), branch_levels)
-    node$.panel <- factor(.subset2(node, ".panel"), panel_levels)
+    node$ggpanel <- factor(.subset2(node, "ggpanel"), panel_levels)
     if (!is.null(edge)) {
         edge$panel1 <- factor(.subset2(edge, "panel1"), panel_levels)
         edge$panel2 <- factor(.subset2(edge, "panel2"), panel_levels)
         edge$branch <- factor(.subset2(edge, "branch"), branch_levels)
-        edge$.panel <- factor(.subset2(edge, ".panel"), panel_levels)
+        edge$ggpanel <- factor(.subset2(edge, "ggpanel"), panel_levels)
     }
-    list(node = node, edge = edge)
+    node <- rename(node, c(ggpanel = ".panel", index = ".index"))
+    edge <- rename(edge, c(ggpanel = ".panel"))
+    ggalign_data_set(node, edge = edge)
+}
+
+#' @param ... Additional arguments passed to `dendrogram` method.
+#' @export
+#' @rdname fortify_data_frame.dendrogram
+fortify_data_frame.hclust <- function(data, ...) {
+    fortify_data_frame.dendrogram(stats::as.dendrogram(data), ...)
+}
+
+#' @param ggpanels Won't be `NA`
+#' @noRd
+make_horizontal <- function(x, panels, ggpanels, y, branch,
+                            ranges, full_panel = names(ranges),
+                            double = TRUE) {
+    if (!isTRUE(double) || identical(ggpanels[1L], ggpanels[2L])) {
+        # in the same panel
+        data_frame0(
+            x = x[1L],
+            xend = x[2L],
+            y = y,
+            yend = y,
+            branch = branch,
+            panel1 = panels[1L],
+            panel2 = panels[2L],
+            ggpanel = ggpanels[1L]
+        )
+    } else {
+        index <- match(ggpanels, full_panel)
+        ending <- index[2L] # right index
+        panel0 <- panels[1L]
+        ggpanel0 <- ggpanels[1L]
+        point0 <- x[1L] # the left point coordinate x
+        out <- vector("list", diff(index))
+        right_index <- (index[1L] + 1L):ending
+        for (i in seq_along(right_index)) {
+            i1 <- .subset(right_index, i) # right index
+            if (i1 == ending) {
+                point1 <- x[2L]
+                panel1 <- panels[2L]
+                ggpanel1 <- ggpanels[2L]
+            } else {
+                point1 <- mean(range(.subset2(ranges, i1)))
+                ggpanel1 <- panel1 <- .subset(full_panel, i1)
+            }
+            out[[i]] <- data_frame0(
+                x = c(point0, point1),
+                xend = c(point1, point0),
+                y = y,
+                yend = y,
+                branch = branch,
+                panel1 = c(panel0, panel1),
+                panel2 = c(panel1, panel0),
+                ggpanel = c(ggpanel0, ggpanel1)
+            )
+            point0 <- point1
+            panel0 <- panel1
+            ggpanel0 <- ggpanel1
+        }
+        vec_rbind(!!!out)
+    }
 }
 
 # this function won't set the right `midpoint`, but `dendrogram_data` function
@@ -544,11 +595,11 @@ reorder_dendrogram <- function(dend, wts) {
 
 cutree_k_to_h <- function(tree, k) {
     if (is.null(n1 <- nrow(tree$merge)) || n1 < 1) {
-        cli::cli_abort("invalid {.arg tree} ({.field merge} component)")
+        cli_abort("invalid {.arg tree} ({.field merge} component)")
     }
     n <- n1 + 1
     if (is.unsorted(tree$height)) {
-        cli::cli_abort(
+        cli_abort(
             "the 'height' component of 'tree' is not sorted (increasingly)"
         )
     }
@@ -563,20 +614,5 @@ tree_branch_heights <- function(dend) {
             attr(dend, "height"),
             unlist(lapply(dend, tree_branch_heights), FALSE, FALSE)
         )
-    }
-}
-
-#' @importFrom rlang caller_arg caller_env
-check_dendrogram <- function(tree, arg = caller_arg(tree),
-                             call = caller_call()) {
-    if (inherits(tree, "hclust")) {
-        stats::as.dendrogram(tree)
-    } else if (inherits(tree, "dendrogram")) {
-        tree
-    } else {
-        cli::cli_abort(paste(
-            "{.arg {arg}} must be a {.cls hclust}",
-            "or a {.cls dendrogram} object."
-        ), call = call)
     }
 }

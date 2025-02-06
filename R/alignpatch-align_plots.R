@@ -56,7 +56,7 @@
 align_plots <- function(..., ncol = NULL, nrow = NULL, byrow = TRUE,
                         widths = NA, heights = NA, design = NULL,
                         guides = waiver(), theme = NULL) {
-    plots <- rlang::dots_list(..., .ignore_empty = "all")
+    plots <- rlang::dots_list(..., .ignore_empty = "all", .named = NULL)
     nms <- names(plots)
     if (!is.null(nms) && is.character(design)) {
         area_names <- unique(trimws(.subset2(strsplit(design, ""), 1L)))
@@ -71,7 +71,7 @@ align_plots <- function(..., ncol = NULL, nrow = NULL, byrow = TRUE,
     design <- as_areas(design)
     for (plot in plots) {
         if (!has_method(plot, "alignpatch", default = FALSE)) {
-            cli::cli_abort("Cannot align {.obj_type_friendly {plot}}")
+            cli_abort("Cannot align {.obj_type_friendly {plot}}")
         }
     }
 
@@ -121,7 +121,7 @@ new_alignpatches <- function(plots, layout = NULL,
 #' @export
 `+.alignpatches` <- function(e1, e2) {
     if (missing(e2)) {
-        cli::cli_abort(c(
+        cli_abort(c(
             "Cannot use {.code +} with a single argument.",
             "i" = "Did you accidentally put {.code +} on a new line?"
         ))
@@ -129,7 +129,7 @@ new_alignpatches <- function(plots, layout = NULL,
 
     # Get the name of what was passed in as e2, and pass along so that it
     # can be displayed in error messages
-    e2name <- deparse(substitute(e2))
+    e2name <- paste(deparse(substitute(e2)), collapse = " ")
     alignpatches_add(e2, e1, e2name)
 }
 
@@ -178,15 +178,7 @@ layout_design <- function(ncol = waiver(), nrow = waiver(), byrow = waiver(),
     ), class = c("layout_design", "plot_layout"))
 }
 
-#' @importFrom utils modifyList
-update_non_waive <- function(old, new) {
-    modifyList(old,
-        new[!vapply(new, is.waive, logical(1L), USE.NAMES = FALSE)],
-        keep.null = TRUE
-    )
-}
-
-update_design <- function(old, new) {
+update_layout_design <- function(old, new) {
     guides <- .subset2(new, "guides")
     new$guides <- NULL # guides need special consideration
     old <- update_non_waive(old, new)
@@ -200,7 +192,7 @@ update_design <- function(old, new) {
 
 #' @export
 alignpatches_add.layout_design <- function(object, plot, object_name) {
-    plot$layout <- update_design(.subset2(plot, "layout"), object)
+    plot$layout <- update_layout_design(.subset2(plot, "layout"), object)
     plot
 }
 
@@ -216,7 +208,7 @@ alignpatches_add.plot_layout <- function(object, plot, object_name) {
     } else if (identical(object$guides, "keep")) {
         object["guides"] <- list(NULL)
     }
-    plot$layout <- update_design(.subset2(plot, "layout"), object)
+    plot$layout <- update_layout_design(.subset2(plot, "layout"), object)
     plot
 }
 
@@ -251,19 +243,23 @@ alignpatches_add.layout_title <- function(object, plot, object_name) {
     plot
 }
 
+update_layout_title <- function(old, new) update_non_waive(old, new)
+
 ##############################################################
 #' Modify components of the layout
 #'
 #' - modify the theme of the layout
 #'
-#' @param theme A [`theme()`][ggplot2::theme] used to render the `guides`,
-#' `title`, `subtitle`, `caption`, `margins`, `patch.title`, `panel.border`, and
-#' `background`. If `NULL` (default), will inherit from the parent `layout`.
+#' @param theme A [`theme()`][ggplot2::theme] object used to customize various
+#' elements of the plot, including `guides`, `title`, `subtitle`, `caption`,
+#' `margins`, `panel.border`, and `background`. By default, the
+#' theme will inherit from the parent `layout`.
+#'
 #' @inheritParams rlang::args_dots_empty
 #'
 #' @details
-#' - `guides`, `patch.title`, `panel.border`, and `background` will always be
-#' added even for the nested `alignpatches` object.
+#' - `guides`, `panel.border`, and `background` will always be used even for the
+#' nested `alignpatches` object.
 #'
 #' - `title`, `subtitle`, `caption`, and `margins` will be added for the
 #' top-level `alignpatches` object only.
@@ -295,19 +291,21 @@ layout_annotation <- function(theme = waiver(), ...) {
     )
 }
 
+update_annotation_theme <- function(old, new) {
+    if (is.waive(new)) return(old) # styler: off
+    if (is.null(old) || is.null(new)) return(new) # styler: off
+    old + new
+}
+
 # Used by add `layout_annotation` to the `Layout` objects
 update_layout_annotation <- function(object, layout, object_name) {
     layout@annotation <- update_non_waive(
         layout@annotation, .subset2(object, "annotation")
     )
-    layout@theme <- update_theme(layout@theme, .subset2(object, "theme"))
+    layout@theme <- update_annotation_theme(
+        layout@theme, .subset2(object, "theme")
+    )
     layout
-}
-
-update_theme <- function(old, new) {
-    if (is.waive(new)) return(old) # styler: off
-    if (is.null(old) || is.null(new)) return(new) # styler: off
-    old + new
 }
 
 #' @export
@@ -316,7 +314,7 @@ alignpatches_add.layout_annotation <- function(object, plot, object_name) {
         .subset2(plot, "annotation"),
         .subset2(object, "annotation")
     )
-    plot$theme <- update_theme(
+    plot$theme <- update_annotation_theme(
         .subset2(plot, "theme"),
         .subset2(object, "theme")
     )
@@ -329,7 +327,7 @@ alignpatches_add.plot_annotation <- function(object, plot, object_name) {
         .subset2(plot, "titles"),
         .subset(object, names(layout_title()))
     )
-    plot$theme <- update_theme(
+    plot$theme <- update_annotation_theme(
         .subset2(plot, "theme"),
         .subset2(object, "theme")
     )

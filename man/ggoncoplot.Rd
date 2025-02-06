@@ -3,7 +3,7 @@
 \name{ggoncoplot}
 \alias{ggoncoplot}
 \alias{ggoncoplot.default}
-\title{Create \code{OncoPrint} Visualizations from Genetic Alteration Data}
+\title{Create an OncoPrint}
 \usage{
 ggoncoplot(
   data = NULL,
@@ -37,28 +37,39 @@ ggoncoplot(
 }
 \arguments{
 \item{data}{A character matrix which encodes the alterations, you can use
-regex \verb{[;:,|]} to separate multiple alterations.}
+\code{";"}, \code{":"}, \code{","}, or \code{"|"} to separate multiple alterations.}
 
-\item{mapping}{Default list of aesthetic mappings to use for plot.
-If not specified, must be supplied in each layer added to the plot.}
+\item{mapping}{Default list of aesthetic mappings to use for main plot in the
+layout. If not specified, must be supplied in each layer added to the main
+plot.}
 
 \item{...}{Additional arguments passed to \code{\link[=fortify_matrix]{fortify_matrix()}}.}
 
 \item{map_width, map_height}{A named numeric value defines the width/height of
 each alterations.}
 
-\item{reorder_row, reorder_column}{A boolean value indicating whether to
-reorder the rows/columns based on the frequency or characteristics of the
-alterations.}
+\item{reorder_row}{A boolean value indicating whether to reorder the rows
+based on the frequency of alterations. You can set this to \code{FALSE}, then add
+\code{align_order(~rowSums(!is.na(.x)), reverse = TRUE)} to achieve the same
+result. You may also need to set \code{strit = FALSE} in \code{\link[=align_order]{align_order()}} if
+there are already groups.}
+
+\item{reorder_column}{A boolean value indicating whether to reorder the
+columns based on the characteristics of the alterations. You can set this to
+\code{FALSE}, then add \code{align_reorder(memo_order)} to achieve the same result. You
+may also need to set \code{strit = FALSE} in \code{\link[=align_reorder]{align_reorder()}} if there are
+already groups.}
 
 \item{width, height}{The relative width/height of the main plot, can be a
 \code{\link[grid:unit]{unit}} object.}
 
 \item{filling}{Same as \code{\link[=ggheatmap]{ggheatmap()}}, but only \code{"tile"} can be used.}
 
-\item{theme}{A \code{\link[ggplot2:theme]{theme()}} used to render the \code{guides},
-\code{title}, \code{subtitle}, \code{caption}, \code{margins}, \code{patch.title}, \code{panel.border}, and
-\code{background}. If \code{NULL} (default), will inherit from the parent \code{layout}.}
+\item{theme}{A \code{\link[ggplot2:theme]{theme()}} object used to customize various
+elements of the layout, including \code{guides}, \code{title}, \code{subtitle}, \code{caption},
+\code{margins}, \code{panel.border}, and \code{background}. By default, the theme will
+inherit from the parent \code{layout}. It also controls the panel spacing for all
+plots in the layout.}
 
 \item{active}{A \code{\link[=active]{active()}} object that defines the context settings when
 added to a layout.}
@@ -67,7 +78,7 @@ added to a layout.}
 A \code{HeatmapLayout} object.
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
 
 The \code{ggoncoplot()} function generates \code{oncoPrint} visualizations that display
 genetic alterations in a matrix format. This function is especially useful
@@ -78,12 +89,8 @@ variations, and other genomic alterations in cancer research.
 \code{ggoncoplot()} is a wrapper around the \code{\link[=ggheatmap]{ggheatmap()}} function, designed to
 simplify the creation of \code{OncoPrint}-style visualizations. The function
 automatically processes the input character matrix by splitting the encoded
-alterations (delimited by regex \verb{[;:,|]}) into individual genomic events and
-unnesting the columns for visualization.
-
-Additionally, a predefined reordering function, adapted from
-\url{https://gist.github.com/armish/564a65ab874a770e2c26}, is included to enhance
-the organization of the alterations.
+alterations (delimited by \code{";"}, \code{":"}, \code{","}, or \code{"|"}) into
+individual genomic events and unnesting the columns for visualization.
 }
 \examples{
 # A simple example from `ComplexHeatmap`

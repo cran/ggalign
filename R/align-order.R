@@ -23,39 +23,37 @@
 #' matrix, transforming it as necessary for weight calculations. By default, it
 #' will inherit from the layout matrix.
 #' @inheritParams align
-#' @inheritParams align_gg
-#' @return A `"AlignOrder"` object.
-#' @inheritSection align Axis Alignment for Observations
+#' @inheritSection align Discrete Axis Alignment
 #' @examples
 #' ggheatmap(matrix(rnorm(81), nrow = 9)) +
 #'     anno_left() +
 #'     align_order(I("rowMeans"))
 #' @importFrom ggplot2 waiver
+#' @importFrom rlang list2
 #' @export
 align_order <- function(weights = rowMeans, ...,
                         reverse = FALSE, strict = TRUE, data = NULL,
-                        active = NULL, set_context = deprecated(),
-                        name = deprecated()) {
+                        active = NULL) {
     if (is.numeric(weights) ||
         (is.character(weights) && !inherits(weights, "AsIs"))) {
         # vec_duplicate_any is slight faster than `anyDuplicated`
-        if (anyNA(weights) || vec_duplicate_any(weights)) {
-            cli::cli_abort(paste(
-                "{.arg order} must be an ordering numeric or character",
+        if (vec_any_missing(weights) || vec_duplicate_any(weights)) {
+            cli_abort(paste(
+                "{.arg weights} must be an ordering numeric or character",
                 "without missing value or ties"
             ))
         } else if (is.numeric(weights)) {
             weights <- vec_cast(weights, integer())
         }
-        if (!is.null(data) && !is.waive(data)) {
-            cli::cli_warn(c(
+        if (vec_size(weights) == 0L) {
+            cli_abort("{.arg weights} cannot be empty")
+        }
+        if (!is.null(data)) {
+            cli_warn(c(
                 "{.arg data} won't be used",
-                i = "{.arg order} is not a {.cls function}"
+                i = "{.arg weights} is not a {.cls function}"
             ))
         }
-        # we always inherit from parent layout
-        # in this way, we obtain the names of the layout data
-        data <- waiver()
     } else {
         weights <- rlang::as_function(weights)
         data <- data %||% waiver()
@@ -63,94 +61,69 @@ align_order <- function(weights = rowMeans, ...,
     assert_bool(strict)
     assert_bool(reverse)
     assert_active(active)
-    active <- update_active(active, new_active(
-        use = FALSE, order = NA_integer_, name = NA_character_
-    ))
-    active <- deprecate_active(active, "align_order",
-        set_context = set_context, name = name
-    )
+    active <- update_active(active, new_active(use = FALSE))
     align(
-        align_class = AlignOrder,
-        params = list(
-            weights = weights,
-            weights_params = rlang::list2(...),
-            reverse = reverse,
-            strict = strict
-        ),
+        align = AlignOrder,
+        weights = weights,
+        params = list2(...),
+        reverse = reverse,
+        strict = strict,
         active = active,
-        check.param = TRUE,
         data = data
     )
 }
 
 #' @importFrom ggplot2 ggproto
-#' @importFrom rlang inject
+#' @importFrom rlang inject is_atomic
 AlignOrder <- ggproto("AlignOrder", Align,
-    nobs = function(params) length(.subset2(params, "weights")),
-    setup_params = function(self, nobs, params) {
-        if (!is.function(.subset2(params, "weights"))) {
-            assert_mismatch_nobs(self, nobs,
-                length(.subset2(params, "weights")),
-                msg = "must be an ordering integer index or character of",
-                arg = "weights"
-            )
+    interact_layout = function(self, layout) {
+        if (is.function(self$weights)) {
+            layout <- ggproto_parent(AlignReorder, self)$interact_layout(layout)
+        } else {
+            layout <- ggproto_parent(Align, self)$interact_layout(layout)
+            if (is.null(layout_nobs <- .subset2(layout@design, "nobs"))) {
+                layout@design["nobs"] <- list(vec_size(self$weights))
+            } else {
+                assert_mismatch_nobs(
+                    self, layout_nobs, vec_size(self$weights),
+                    arg = "weights"
+                )
+            }
+            self$labels <- vec_names(layout@data)
         }
-        params
+        layout
     },
-    compute = function(self, panel, index, weights, weights_params, strict) {
-        assert_reorder(self, panel, strict)
-        if (is.function(weights)) {
-            data <- .subset2(self, "data")
-            ans <- inject(weights(data, !!!weights_params))
-            if (!rlang::is_atomic(ans)) {
-                cli::cli_abort(
+    compute = function(self, panel, index) {
+        if (is.function(self$weights)) {
+            ans <- inject(self$weights(self$data, !!!self$params))
+            if (!is_atomic(ans)) {
+                cli_abort(
                     "{.arg weights} must return an atomic weights",
-                    call = .subset2(self, "call")
+                    call = self$call
                 )
             }
             assert_mismatch_nobs(
-                self, nrow(data), length(ans),
-                msg = "must return weights with",
+                self, vec_size(ans), vec_size(ans),
                 arg = "weights"
             )
-        } else {
-            ans <- NULL
+            ans
         }
-        ans
     },
-    layout = function(self, panel, index, weights, reverse) {
-        if (!is.function(weights)) {
-            if (is.numeric(weights)) {
-                index <- weights
-                if (any(index < 1L) || any(index > length(weights))) {
-                    cli::cli_abort(paste(
-                        "Outliers found in the provided ordering",
-                        "integer index {.arg weights}"
-                    ), call = .subset2(self, "call"))
-                } else if (vec_duplicate_any(index)) {
-                    cli::cli_abort(
-                        "find ties when coercing {.arg weights} into integer",
-                        call = .subset2(self, "call")
-                    )
-                }
-            } else if (is.null(layout_labels <- .subset2(self, "labels"))) {
-                cli::cli_abort(
-                    c(sprintf(
-                        "No names found in layout %s-axis",
-                        to_coord_axis(.subset2(self, "direction"))
-                    ), i = "Cannot use ordering character index {.arg weights}"),
-                    call = .subset2(self, "call")
-                )
-            } else if (anyNA(index <- match(weights, layout_labels))) {
-                cli::cli_abort(sprintf(
-                    "{.arg weights} contains invalid names: %s",
-                    style_val(weights[is.na(index)])
-                ), call = .subset2(self, "call"))
-            }
+    align = function(self, panel, index) {
+        if (is.function(self$weights)) {
+            index <- order(self$statistics)
         } else {
-            index <- order(.subset2(self, "statistics"))
+            index <- vec_as_location(
+                self$weights,
+                n = vec_size(self$weights),
+                names = self$labels,
+                missing = "error",
+                call = self$call
+            )
         }
-        if (reverse) index <- rev(index)
+        if (self$reverse) index <- rev(index)
+        assert_reorder(self, panel, index, self$strict)
         list(panel, index)
-    }
+    },
+    summary_align = function(self) c(TRUE, FALSE)
 )

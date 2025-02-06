@@ -4,22 +4,35 @@
 \alias{fortify_matrix}
 \title{Build a Matrix}
 \usage{
-fortify_matrix(data, ...)
+fortify_matrix(data, ..., data_arg = caller_arg(data), call = NULL)
 }
 \arguments{
-\item{data}{An object to be converted to a matrix.}
+\item{data}{An object to be converted into a matrix.}
 
-\item{...}{Arguments passed to methods.}
+\item{...}{Additional arguments passed to methods.}
+
+\item{data_arg}{The argument name for \code{data}. Developers can use it to
+improve messages. Not used by the user.}
+
+\item{call}{The execution environment where \code{data} and other arguments for
+the method are collected, e.g., \code{\link[rlang:stack]{caller_env()}}.
+Developers can use it to improve messages. Not used by the user.}
 }
 \value{
 A matrix.
 }
 \description{
-This function converts various objects into a matrix format.
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
+
+This function converts various objects into a matrix format. By default, it
+calls \code{\link[=as.matrix]{as.matrix()}} to build a matrix.
 }
 \seealso{
 \itemize{
 \item \code{\link[=fortify_matrix.default]{fortify_matrix.default()}}
 \item \code{\link[=fortify_matrix.MAF]{fortify_matrix.MAF()}}
+\item \code{\link[=fortify_matrix.GISTIC]{fortify_matrix.GISTIC()}}
+\item \code{\link[=fortify_matrix.list_upset]{fortify_matrix.list_upset()}}
+\item \code{\link[=fortify_matrix.matrix_upset]{fortify_matrix.matrix_upset()}}
 }
 }

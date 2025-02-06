@@ -10,6 +10,7 @@
 coverage](https://codecov.io/gh/Yunuuuu/ggalign/branch/main/graph/badge.svg)](https://app.codecov.io/gh/Yunuuuu/ggalign?branch=main)
 [![CRAN
 status](https://www.r-pkg.org/badges/version/ggalign)](https://CRAN.R-project.org/package=ggalign)
+[![](https://cranlogs.r-pkg.org/badges/ggalign)](https://cran.r-project.org/package=ggalign)
 <!-- badges: end -->
 
 This package extends ggplot2 by providing advanced tools for aligning
@@ -57,147 +58,150 @@ or from [GitHub](https://github.com/Yunuuuu/ggalign) with:
 remotes::install_github("Yunuuuu/ggalign")
 ```
 
-## Getting Started
+## Learning ggalign
 
-The usage of `ggalign` is simple if you’re familiar with `ggplot2`
-syntax, the typical workflow includes:
+1.  The complete tutorial is available at:
+    <https://yunuuuu.github.io/ggalign-book/>
 
-- Initialize the layout using `quad_layout()` (`ggheatmap()`/`ggside()`)
-  or `stack_layout()` (`ggstack()`).
-- Customize the layout with:
-  - `align_group()`: Group observations into panel with a group
-    variable.
-  - `align_kmeans()`: Group observations into panel by kmeans.
-  - `align_order()`: Reorder layout observations based on statistical
-    weights or by manually specifying the observation index.
-  - `align_dendro()`: Reorder or Group layout based on hierarchical
-    clustering.
-- Adding plots with `ggalign()` or `ggfree()`, and then layer additional
-  ggplot2 elements such as geoms, stats, or scales.
+2.  For the full reference documentation, visit:
+    <https://yunuuuu.github.io/ggalign/>
 
-For documents of the release version, please see
-<https://yunuuuu.github.io/ggalign/>, for documents of the development
-version, please see <https://yunuuuu.github.io/ggalign/dev/>.
+## Examples
 
-## Basic example
+![](man/figures/overview.png)
 
-Below, we’ll walk through a basic example of using `ggalign` to create a
-heatmap with a `dendrogram`.
+## Compare with other similar tools
 
-``` r
-library(ggalign)
-#> Loading required package: ggplot2
-```
+<table class="table"><thead>
+    <tr>
+        <th colspan="2"></th>
+        <th> <code>ggalign</code> </th>
+        <th> <code>marsilea</code> </th>
+        <th> <code>aplot</code> </th>
+        <th> <code>ComplexHeatmap</code> </th>
+    </tr></thead>
+<tbody>
+    <tr>
+        <td colspan="2"> <strong>Language</strong> </td>
+        <td>R</td>
+        <td>Python</td>
+        <td>R</td>
+        <td>R</td>
+    </tr>
+    <tr>
+        <td colspan="2"> <strong>User Interface</strong> </td>
+        <td>Declarative</td>
+        <td>Declarative</td>
+        <td>Declarative+Functional</td>
+        <td>Functional</td>
+    </tr>
+    <tr>
+        <td colspan="2"> <strong>Plot System</strong> </td>
+        <td>ggplot2 (Advanced plot system built on grid system)</td>
+        <td>Matplotlib</td>
+        <td>ggplot2 (Advanced plot system built on grid system)</td>
+        <td>grid</td>
+    </tr>
+    <tr>
+        <td colspan="2"> <strong>Focus</strong> </td>
+        <td>Composable Visualization</td>
+        <td>Composable Visualization</td>
+        <td>Composable Visualization</td>
+        <td>Heatmap</td>
+    </tr>
+    <tr>
+        <td colspan="2"> <strong>StackLayout</strong> </td>
+        <td>✅</td>
+        <td>✅</td>
+        <td>✅</td>
+        <td>✅</td>
+    </tr>
+    <tr>
+        <td colspan="2"> <strong>QuadLayout</strong> </td>
+        <td>✅</td>
+        <td>✅</td>
+        <td>✅</td>
+        <td>Heatmap Only (discrete variables)</td>
+    </tr>
+    <tr>
+        <td colspan="2"> <strong>CircleLayout</strong> </td>
+        <td>✅</td>
+        <td>❌</td>
+        <td>❌</td>
+        <td>❌</td>
+    </tr>
+    <tr>
+        <td rowspan="4"> <strong>Alignment</strong> </td>
+        <td> <strong>One-to-One</strong> </td>
+        <td>✅</td>
+        <td>✅</td>
+        <td>✅</td>
+        <td>✅</td>
+    </tr>
+    <tr>
+        <td> <strong>One-to-Many</strong>/<strong>Many-to-One</strong> </td>
+        <td>✅</td>
+        <td>❌</td>
+        <td>❌</td>
+        <td>❌</td>
+    </tr>
+    <tr>
+        <td> <strong>Many-to-Many</strong> </td>
+        <td>✅</td>
+        <td>❌</td>
+        <td>❌</td>
+        <td>❌</td>
+    </tr>
+    <tr>
+        <td> <strong>Crosswise</strong> </td>
+        <td>✅</td>
+        <td>❌</td>
+        <td>❌</td>
+        <td>❌</td>
+    </tr>
+    <tr>
+        <td colspan="2"> <strong>Annotate observations</strong> </td>
+        <td>✅</td>
+        <td>❌</td>
+        <td>❌</td>
+        <td>✅</td>
+    </tr>
+    <tr>
+        <td colspan="2"> <strong>Fully Compatible with ggplot2</strong> </td>
+        <td>✅</td>
+        <td>❌</td>
+        <td>✅</td>
+        <td>❌</td>
+    </tr>
+</tbody></table>
 
-``` r
-set.seed(123)
-small_mat <- matrix(rnorm(72), nrow = 9)
-rownames(small_mat) <- paste0("row", seq_len(nrow(small_mat)))
-colnames(small_mat) <- paste0("column", seq_len(ncol(small_mat)))
+## Comparison of specifications with other similar tools
 
-# initialize the heatmap layout, we can regard it as a normal ggplot object
-my_heatplot <- ggheatmap(small_mat) +
-    # we can directly modify geoms, scales and other ggplot2 components
-    scale_fill_viridis_c() +
-    # add annotation in the top
-    anno_top() +
-    # in the top annotation, we add a dendrogram, and split observations into 3 groups
-    align_dendro(aes(color = branch), k = 3) +
-    # in the dendrogram we add a point geom
-    geom_point(aes(color = branch, y = y)) +
-    # change color mapping for the dendrogram
-    scale_color_brewer(palette = "Dark2")
-my_heatplot
-#> → heatmap built with `geom_tile()`
-```
+| Specification                                | `ggalign`                                             | `marsilea`    | `aplot`                          | `ComplexHeatmap`                                      |
+|----------------------------------------------|-------------------------------------------------------|---------------|----------------------------------|-------------------------------------------------------|
+| **Reorder observations**                     | ✅                                                    | ✅            | ❌                               | Heatmap Only                                          |
+| **Group observations into different panels** | ✅                                                    | ✅            | ❌                               | Heatmap Only                                          |
+| **Clustering algorithm**                     | Kmeans,Hierarchical Clustering and arbitary algorithm | ❌            | ❌                               | Kmeans,Hierarchical Clustering and arbitary algorithm |
+| **Legends Creation**                         | Automatic                                             | Manual        | Automatic                        | Limited automatic, requires manual add                |
+| **Legends Position**                         | Anywhere, can be controlled for a single plot         | Anywhere      | Anywhere                         | Four sides, can only be placed on one side at a time  |
+| **Dendrogram**                               | Tree from both `hclust` or `ape`                      | `hclust` only | Tree from both `hclust` or `ape` | `hclust` only                                         |
+| **Tanglegram**                               | ✅                                                    | ❌            | ❌                               | ❌                                                    |
+| **3D Heatmap**                               | ✅                                                    | ❌            | ❌                               | ✅                                                    |
+| **Oncoplot**                                 | ✅                                                    | ✅            | ✅                               | ✅                                                    |
+| **UpSet plot**                               | ✅                                                    | ✅            | ❌                               | ✅                                                    |
 
-<img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
+## Acknowledgements
 
-Marginal plots can also be created with similar syntax:
+I would like to express my sincere gratitude to the contributors of the
+`ggplot2` project for providing a powerful and flexible framework for
+data visualization in R. Their work laid the foundation for the
+functionality and design of this package. I would also like to thank the
+`patchwork` project, from which the core coding for the plot composer
+was adapted. The `patchwork` library provided a useful mechanism for
+combining and aligning plots, which was modified to suit the needs of
+this package. Without the contributions of these open-source projects,
+this package would not have been possible.
 
-``` r
-my_sideplot <- ggside(mpg, aes(displ, hwy, colour = class)) -
-    # set default theme for all plots in the layout
-    plot_theme(theme_bw()) +
-    geom_point(size = 2) +
-    # add top annotation
-    anno_top(size = 0.3) -
-    # set default theme for the top annotation
-    plot_theme(theme_no_axes("tb")) +
-    # add a plot in the top annotation
-    ggfree() +
-    geom_density(aes(displ, y = after_stat(density), colour = class), position = "stack") +
-    anno_right(size = 0.3) -
-    # set default theme for the right annotation
-    plot_theme(theme_no_axes("lr")) +
-    # add a plot in the right annotation
-    ggfree() +
-    geom_density(aes(x = after_stat(density), hwy, colour = class),
-        position = "stack"
-    ) +
-    theme(axis.text.x = element_text(angle = 90, vjust = .5)) &
-    scale_color_brewer(palette = "Dark2")
-my_sideplot
-```
-
-<img src="man/figures/README-unnamed-chunk-7-1.png" width="100%" />
-
-Multiple heatmaps can be stacked together:
-
-``` r
-stack_alignv() +
-    my_heatplot +
-    my_heatplot
-#> → heatmap built with `geom_tile()`
-#> → heatmap built with `geom_tile()`
-```
-
-<img src="man/figures/README-unnamed-chunk-8-1.png" width="100%" />
-
-Similarly, multiple marginal plots can be stacked together:
-
-``` r
-stack_freev(sizes = c(1, 1, 0.3)) +
-    my_sideplot +
-    my_sideplot
-```
-
-<img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
-
-## Compare with other ggplot2 heatmap extension
-
-`ggalign` offers advantages over extensions like
-[ggheatmap](https://github.com/XiaoLuo-boy/ggheatmap) by providing full
-compatibility with `ggplot2`. With `ggalign`, you can:
-
-- Seamlessly integrate ggplot2 `geoms`, `stats`, `scales` et al. into
-  your layouts.
-- Align dendrograms even in facetted plots.
-- Easily create complex layouts, including multiple heatmaps arranged
-  vertically or horizontally.
-
-## Compare with ComplexHeatmap
-
-### Pros
-
-- Full integration with the `ggplot2` ecosystem.
-- Heatmap annotation axes and legends are automatically generated.
-- Dendrogram can be easily customized and colored.
-- Flexible control over plot size and spacing.
-- Can easily align with other `ggplot2` plots by panel area.
-- Can easily extend for other clustering algorithm, or annotation plot.
-
-### Cons
-
-Fewer Built-In Annotations: May require additional coding for specific
-annotations or customization compared to the extensive built-in
-annotation function in
-[ComplexHeatmap](https://github.com/jokergoo/ComplexHeatmap).
-
-## More Complex Examples
-
-Here are some more advanced visualizations using `ggalign`:
-
-![](https://yunuuuu.github.io/ggalign/articles/more-examples_files/figure-html/unnamed-chunk-3-1.png)
-
-![](https://yunuuuu.github.io/ggalign/articles/more-examples_files/figure-html/unnamed-chunk-2-1.png)
+Additionally, I would like to extend my heartfelt thanks to
+`@teunbrand`, who has fulfilled my numerous feature requests, and
+assisted with the integration of new functions into ggplot2.

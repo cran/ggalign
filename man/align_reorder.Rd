@@ -10,13 +10,11 @@ align_reorder(
   reverse = FALSE,
   strict = TRUE,
   data = NULL,
-  active = NULL,
-  set_context = deprecated(),
-  name = deprecated()
+  active = NULL
 )
 }
 \arguments{
-\item{stat}{A summary function which accepts a data and returns the
+\item{stat}{A statistical function which accepts a data and returns the
 statistic, which we'll call \code{\link[=order2]{order2()}} to extract the ordering information.}
 
 \item{...}{<\link[rlang:dyn-dots]{dyn-dots}> Additional arguments passed to
@@ -36,15 +34,6 @@ inherit from the layout matrix.}
 
 \item{active}{A \code{\link[=active]{active()}} object that defines the context settings when
 added to a layout.}
-
-\item{set_context}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active}
-argument instead.}
-
-\item{name}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active} argument
-instead.}
-}
-\value{
-A \code{"AlignReorder"} object.
 }
 \description{
 Reorders layout observations based on specific statistics.
@@ -52,30 +41,22 @@ Reorders layout observations based on specific statistics.
 \details{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
-The \code{align_reorder()} function differs from \code{align_order()} in that the \code{wts}
-argument in \code{align_order()} must return atomic weights for each observation.
-In contrast, the \code{stat} argument in \code{align_reorder()} can return more complex
-structures, such as \link[stats:hclust]{hclust} or
+The \code{align_reorder()} function differs from \code{align_order()} in that the
+\code{weights} argument in \code{align_order()} must return atomic weights for each
+observation. In contrast, the \code{stat} argument in \code{align_reorder()} can
+return more complex structures, such as \link[stats:hclust]{hclust} or
 \link[stats:dendrogram]{dendrogram}, among others.
 
 Typically, you can achieve the functionality of \code{align_reorder()} using
 \code{align_order()} by manually extracting the ordering information from
 the statistic.
 }
-\section{Axis Alignment for Observations}{
+\section{Discrete Axis Alignment}{
 
 It is important to note that we consider rows as observations, meaning
 \code{vec_size(data)}/\code{NROW(data)} must match the number of observations along the
 axis used for alignment (x-axis for a vertical stack layout, y-axis for a
 horizontal stack layout).
-\itemize{
-\item \code{\link[=quad_layout]{quad_layout()}}/\code{\link[=ggheatmap]{ggheatmap()}}: For column annotation, the layout
-\code{matrix} will be transposed before use (if \code{data} is a function, it is
-applied to the transposed matrix), as column annotation uses columns as
-observations but alignment requires rows.
-\item \code{\link[=stack_layout]{stack_layout()}}: The layout matrix is used as is, aligning all plots
-along a single axis.
-}
 }
 
 \examples{

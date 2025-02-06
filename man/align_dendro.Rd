@@ -2,7 +2,7 @@
 % Please edit documentation in R/align-dendrogram.R
 \name{align_dendro}
 \alias{align_dendro}
-\title{Reorder or Group observations based on hierarchical clustering}
+\title{Plot dendrogram tree}
 \usage{
 align_dendro(
   mapping = aes(),
@@ -24,15 +24,7 @@ align_dendro(
   size = NULL,
   data = NULL,
   no_axes = NULL,
-  active = NULL,
-  free_guides = deprecated(),
-  free_spaces = deprecated(),
-  plot_data = deprecated(),
-  theme = deprecated(),
-  free_labs = deprecated(),
-  set_context = deprecated(),
-  order = deprecated(),
-  name = deprecated()
+  active = NULL
 )
 }
 \arguments{
@@ -85,9 +77,9 @@ been established. Default: \code{FALSE}.}
 \item{cutree}{A function used to cut the \code{\link[stats:hclust]{hclust}} tree. It
 should accept four arguments: the \code{\link[stats:hclust]{hclust}} tree object,
 \code{distance} (only applicable when \code{method} is a string or a function for
-performing hierarchical clustering), k (the number of clusters), and h (the
-height at which to cut the tree). By default, \code{\link[stats:cutree]{cutree()}}
-is used.}
+performing hierarchical clustering), \code{k} (the number of clusters), and \code{h}
+(the height at which to cut the tree). By default,
+\code{\link[stats:cutree]{cutree()}} is used.}
 
 \item{plot_dendrogram}{A boolean value indicates whether plot the dendrogram
 tree.}
@@ -97,121 +89,60 @@ tree.}
 \item{root}{A length one string or numeric indicates the root branch.}
 
 \item{center}{A boolean value. if \code{TRUE}, nodes are plotted centered with
-respect to the leaves in the branch. Otherwise (default), plot them in the
-middle of all direct child nodes.}
+respect to all leaves/tips in the branch. Otherwise (default), plot them in
+the middle of the direct child nodes.}
 
 \item{type}{A string indicates the plot type, \code{"rectangle"} or \code{"triangle"}.}
 
 \item{size}{The relative size of the plot, can be specified as a
-\code{\link[grid:unit]{unit}}.}
+\code{\link[grid:unit]{unit()}}. Note that for \code{\link[=circle_layout]{circle_layout()}}, all size values
+will be interpreted as relative sizes, as this layout type adjusts based on
+the available space in the circular arrangement.}
 
 \item{data}{A matrix-like object. By default, it inherits from the layout
 \code{matrix}.}
 
 \item{no_axes}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Logical; if \code{TRUE},
 removes axes elements for the alignment axis using \code{\link[=theme_no_axes]{theme_no_axes()}}. By
-default, will controled by the option-
+default, will use the option-
 \code{"ggalign.align_no_axes"}.}
 
 \item{active}{A \code{\link[=active]{active()}} object that defines the context settings when
 added to a layout.}
-
-\item{free_guides}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#superseded}{\figure{lifecycle-superseded.svg}{options: alt='[Superseded]'}}}{\strong{[Superseded]}} Please use
-\code{\link[=plot_align]{plot_align()}} function instead.}
-
-\item{free_spaces}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_align]{plot_align()}} function instead.}
-
-\item{plot_data}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_data]{plot_data()}} function instead.}
-
-\item{theme}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_theme]{plot_theme()}} function instead.}
-
-\item{free_labs}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
-\code{\link[=plot_align]{plot_align()}} function instead.}
-
-\item{set_context}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active}
-argument instead.}
-
-\item{order}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active} argument
-instead.}
-
-\item{name}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use \code{active} argument
-instead.}
-}
-\value{
-A \code{"AlignDendro"} object.
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
-
-This function aligns observations within the layout according to a
-hierarchical clustering tree, enabling reordering or grouping of elements
-based on clustering results.
+Plot dendrogram tree
 }
 \section{ggplot2 specification}{
 
 \code{align_dendro} initializes a ggplot \code{data} and \code{mapping}.
 
-The internal will always use a default mapping of \code{aes(x = .data$x, y = .data$y)}.
+The internal \code{ggplot} object will always use a default mapping of
+\code{aes(x = .data$x, y = .data$y)}.
 
 The default ggplot data is the \code{node} coordinates with \code{edge} data attached
 in \code{\link[=ggalign_attr]{ggalign}} attribute, in addition, a
-\code{\link[ggplot2:geom_segment]{geom_segment}} layer with a data of the \code{edge}
-coordinates will be added.
+\code{\link[ggplot2:geom_segment]{geom_segment}} layer with a data frame of the \code{edge}
+coordinates will be added when \code{plot_dendrogram = TRUE}.
 
-\code{node} and tree segments \code{edge} coordinates contains following columns:
-\itemize{
-\item \code{index}: the original index in the tree for the current node
-\item \code{label}: node label text
-\item \code{x} and \code{y}: x-axis and y-axis coordinates for current node or the start
-node of the current edge.
-\item \code{xend} and \code{yend}: the x-axis and y-axis coordinates of the terminal node
-for current edge.
-\item \code{branch}: which branch current node or edge is. You can use this column
-to color different groups.
-\item \code{panel}: which panel current node is, if we split the plot into panel
-using \code{\link[ggplot2:facet_grid]{facet_grid}}, this column will show
-which panel current node or edge is from. Note: some nodes may
-fall outside panel (between two panel), so there are possible
-\code{NA} values in this column.
-\item \code{.panel}: Similar with \code{panel} column, but always give the correct branch
-for usage of the ggplot facet.
-\item \code{panel1} and \code{panel2}: The panel1 and panel2 variables have the same
-functionality as \code{panel}, but they are specifically for the \code{edge} data
-and correspond to both nodes of each edge.
-\item \code{leaf}: A logical value indicates whether current node is a leaf.
-}
+See \code{\link[=fortify_data_frame.dendrogram]{fortify_data_frame.dendrogram()}} for details.
 }
 
-\section{Axis Alignment for Observations}{
+\section{Discrete Axis Alignment}{
 
 It is important to note that we consider rows as observations, meaning
 \code{vec_size(data)}/\code{NROW(data)} must match the number of observations along the
 axis used for alignment (x-axis for a vertical stack layout, y-axis for a
 horizontal stack layout).
-\itemize{
-\item \code{\link[=quad_layout]{quad_layout()}}/\code{\link[=ggheatmap]{ggheatmap()}}: For column annotation, the layout
-\code{matrix} will be transposed before use (if \code{data} is a function, it is
-applied to the transposed matrix), as column annotation uses columns as
-observations but alignment requires rows.
-\item \code{\link[=stack_layout]{stack_layout()}}: The layout matrix is used as is, aligning all plots
-along a single axis.
-}
 }
 
 \examples{
+# align_dendro will always add a plot area
 ggheatmap(matrix(rnorm(81), nrow = 9)) +
     anno_top() +
     align_dendro()
 ggheatmap(matrix(rnorm(81), nrow = 9)) +
     anno_top() +
     align_dendro(k = 3L)
-}
-\seealso{
-\itemize{
-\item \code{\link[=dendrogram_data]{dendrogram_data()}}
-\item \code{\link[=hclust2]{hclust2()}}
-}
+
 }

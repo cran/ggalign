@@ -2,53 +2,127 @@
 % Please edit documentation in R/layout-stack-.R
 \name{stack_layout}
 \alias{stack_layout}
-\alias{ggstack}
-\title{Put plots horizontally or vertically}
+\alias{stack_horizontal}
+\alias{stack_vertical}
+\alias{stack_discrete}
+\alias{stack_align}
+\alias{stack_discretev}
+\alias{stack_alignv}
+\alias{stack_discreteh}
+\alias{stack_alignh}
+\alias{stack_continuous}
+\alias{stack_free}
+\alias{stack_continuousv}
+\alias{stack_freev}
+\alias{stack_continuoush}
+\alias{stack_freeh}
+\title{Arrange plots horizontally or vertically}
 \usage{
-stack_layout(data = NULL, direction = NULL, type = NULL, ...)
+stack_layout(
+  direction,
+  data = NULL,
+  ...,
+  theme = NULL,
+  sizes = NA,
+  limits = waiver()
+)
+
+stack_horizontal(data = NULL, ..., limits = waiver())
+
+stack_vertical(data = NULL, ..., limits = waiver())
+
+stack_discrete(direction, data = NULL, ..., theme = NULL, sizes = NA)
+
+stack_discretev(data = NULL, ...)
+
+stack_discreteh(data = NULL, ...)
+
+stack_continuous(
+  direction,
+  data = NULL,
+  ...,
+  limits = NULL,
+  theme = NULL,
+  sizes = NA
+)
+
+stack_continuousv(data = NULL, ...)
+
+stack_continuoush(data = NULL, ...)
 }
 \arguments{
-\item{data}{Default dataset to use for the layout. If not specified, it must be supplied in each plot added to the layout. By default, it will try to inherit from parent layout:
-\itemize{
-\item If \code{type} is \code{align}, \code{\link[=fortify_data_frame]{fortify_data_frame()}} will be used to get a data
-frame.
-\item If \code{type} is \code{free}, \code{\link[=fortify_matrix]{fortify_matrix()}} will be used to get a matrix.
-}}
-
 \item{direction}{A string indicating the direction of the stack layout,
-either \code{"horizontal"} or \code{"vertical"}.}
+either \code{"h"}(\code{horizontal}) or \code{"v"}(\code{vertical}).}
 
-\item{type}{A string indicating the stack layout type: \code{"align"} for
-aligned plots (\code{\link[=stack_align]{stack_align()}}) or \code{"free"} for free stacking
-(\code{\link[=stack_free]{stack_free()}}).}
+\item{data}{Default dataset to use for the layout. If not specified, it must be supplied in each plot added to the layout:
+\itemize{
+\item If \code{limits} is not provided, \code{\link[=fortify_matrix]{fortify_matrix()}} will be used to get a
+matrix.
+\item If \code{limits} is specified, \code{\link[=fortify_data_frame]{fortify_data_frame()}} will be used to get a
+data frame.
+}}
 
 \item{...}{Additional arguments passed to \code{\link[=fortify_data_frame]{fortify_data_frame()}} or
 \code{\link[=fortify_matrix]{fortify_matrix()}}.}
+
+\item{theme}{A \code{\link[ggplot2:theme]{theme()}} object used to customize various
+elements of the layout, including \code{guides}, \code{title}, \code{subtitle}, \code{caption},
+\code{margins}, \code{panel.border}, and \code{background}. By default, the theme will
+inherit from the parent \code{layout}. It also controls the panel spacing for all
+plots in the layout.}
+
+\item{sizes}{A numeric value or a \code{\link[grid:unit]{unit}} object. When used for
+the \code{\link[=quad_layout]{quad_layout()}} annotation, it must be of length \code{1}. When used in the
+\code{\link[=stack_layout]{stack_layout()}} with a nested \code{\link[=quad_layout]{quad_layout()}}, it should be of length
+\code{3}, specifying the relative heights (for \code{direction = "h"}) or widths (for
+\code{direction = "v"}) to be applied to the layout.}
+
+\item{limits}{A \code{\link[=continuous_limits]{continuous_limits()}} object specifying the left/lower
+limit and the right/upper limit of the scale. Used to align the continuous
+axis.}
 }
 \value{
 A \code{StackLayout} object.
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
 
-This function integrates the functionalities of \code{stack_free()} and
-\code{stack_align()} into a single interface. \code{ggstack} is an alias for
-\code{stack_layout}.
+If \code{limits} is provided, a continuous variable will be required and aligned
+in the direction specified (\code{stack_continuous}). Otherwise, a discrete
+variable will be required and aligned (\code{stack_discrete}).
+
+Several aliases are provided for convenience:
+\itemize{
+\item \code{stack_vertical}: A special case of \code{stack_layout} that sets \code{direction = "v"}.
+\item \code{stack_horizontal}: A special case of \code{stack_layout} that sets \code{direction = "h"}.
+\item \code{stack_discretev}: A special case of \code{stack_discrete} that sets \code{direction = "v"}.
+\item \code{stack_discreteh}: A special case of \code{stack_discrete} that sets \code{direction = "h"}.
+\item \code{stack_continuousv()}: A special case of \code{stack_free} that sets \code{direction = "v"}.
+\item \code{stack_continuoush()}: A special case of \code{stack_free} that sets \code{direction = "h"}.
+}
+
+For historical reasons, the following aliases are available:
+\itemize{
+\item \code{stack_align} is an alias for \code{stack_discrete}.
+\item \code{stack_alignv} is an alias for \code{stack_discretev}.
+\item \code{stack_alignh} is an alias for \code{stack_discreteh}.
+\item \code{stack_free} is an alias for \code{stack_continuous}.
+\item \code{stack_freev} is an alias for \code{stack_continuousv}.
+\item \code{stack_freeh} is an alias for \code{stack_continuoush}.
+}
 }
 \examples{
 set.seed(123)
 small_mat <- matrix(rnorm(56), nrow = 7L)
-stack_layout(small_mat, "h", "align") + align_dendro()
 
-# ggstack is an alias for `stack_layout`
-ggstack(small_mat, "h", "align") + align_dendro()
+stack_horizontal(small_mat) + align_dendro()
 
 # this is the same with:
-stack_align(small_mat, "h") + align_dendro()
-}
-\seealso{
-\itemize{
-\item \code{\link[=stack_align]{stack_align()}}
-\item \code{\link[=stack_free]{stack_free()}}
-}
+stack_discrete("h", small_mat) + align_dendro()
+
+stack_discreteh(small_mat) + align_dendro()
+
+# For vertical layout:
+stack_vertical(small_mat) + align_dendro()
+
 }

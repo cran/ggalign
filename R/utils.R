@@ -1,5 +1,35 @@
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
+# `vec_rep`
+recycle_whole <- function(x, len) {
+    out <- x %% len
+    if (out == 0L) len else out
+}
+
+# `vec_rep_each`
+recycle_each <- function(x, len) {
+    (x - 1L) %/% len + 1L
+}
+
+#' @importFrom utils modifyList
+update_non_waive <- function(old, new, keep_null = TRUE) {
+    modifyList(old,
+        new[!vapply(new, is.waive, logical(1L), USE.NAMES = FALSE)],
+        keep.null = keep_null
+    )
+}
+
+is_s3 <- function(x) is.object(x) && !isS4(x) && !inherits(x, "R6")
+
+#' @importFrom rlang names2
+names_or_index <- function(x) {
+    nms <- names2(x)
+    empty <- nms == ""
+    nms[empty] <- seq_along(x)[empty]
+    nms
+}
+
+#################################################################
 #' Read Example Data
 #'
 #' This function reads example data from the file. If no file is specified, it
@@ -49,7 +79,7 @@ fn_body_append <- function(fn, ..., ans = FALSE) {
 # `foo.default`.
 #' @importFrom utils getS3method
 #' @importFrom methods extends
-has_method <- function(x, f, inherit = TRUE, default = TRUE) {
+has_method <- function(x, f, inherit = TRUE, default = inherit) {
     x_class <- class(x)
     if (inherit) {
         if (isS4(x)) x_class <- extends(x_class)
@@ -149,7 +179,13 @@ save_png <- function(code, width = 400L, height = 400L) {
 }
 
 add_class <- function(x, ...) {
-    class(x) <- c(..., class(x))
+    if (is.null(x)) return(x) # styler: off
+    class(x) <- vec_unique(c(..., class(x)))
+    x
+}
+
+remove_class <- function(x, ...) {
+    oldClass(x) <- vec_set_difference(oldClass(x), c(...))
     x
 }
 
@@ -216,9 +252,7 @@ fclass <- function(x) .subset(class(x), 1L)
 
 is_scalar <- function(x) length(x) == 1L
 
-is_scalar_numeric <- function(x) {
-    length(x) == 1L && is.numeric(x)
-}
+is_scalar_numeric <- function(x) length(x) == 1L && is.numeric(x)
 
 # utils function to collapse characters ---------------------------
 oxford_and <- function(chr, code = TRUE, quote = TRUE, sep = ", ") {

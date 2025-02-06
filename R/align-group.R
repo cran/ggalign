@@ -6,8 +6,7 @@
 #' Splits observations into groups, with slice ordering based on group levels.
 #'
 #' @param group A character define the groups of the observations.
-#' @inheritParams align_gg
-#' @return A `"AlignGroup"` object.
+#' @inheritParams align
 #' @examples
 #' set.seed(1L)
 #' small_mat <- matrix(rnorm(81), nrow = 9)
@@ -15,33 +14,34 @@
 #'     anno_top() +
 #'     align_group(sample(letters[1:4], ncol(small_mat), replace = TRUE))
 #' @export
-align_group <- function(group, active = NULL, set_context = deprecated(),
-                        name = deprecated()) {
+align_group <- function(group, active = NULL) {
     assert_active(active)
-    active <- update_active(active, new_active(
-        use = FALSE, order = NA_integer_, name = NA_character_
-    ))
-    active <- deprecate_active(active, "align_group",
-        set_context = set_context, name = name
-    )
+    if (vec_size(group) == 0L) {
+        cli_abort("{.arg group} cannot be empty")
+    }
+    active <- update_active(active, new_active(use = FALSE))
     align(
-        align_class = AlignGroup,
-        params = list(group = group),
-        data = NULL, active = active,
+        align = AlignGroup,
+        group = group,
+        active = active,
         check.param = TRUE
     )
 }
 
 #' @importFrom ggplot2 ggproto
 AlignGroup <- ggproto("AlignGroup", Align,
-    nobs = function(self, params) vec_size(.subset2(params, "group")),
-    setup_params = function(self, nobs, params) {
-        assert_mismatch_nobs(self, nobs,
-            vec_size(.subset2(params, "group")),
-            msg = "must be an atomic vector",
-            arg = "group"
-        )
-        params
+    interact_layout = function(self, layout) {
+        layout <- ggproto_parent(Align, self)$interact_layout(layout)
+        if (is.null(layout_nobs <- .subset2(layout@design, "nobs"))) {
+            layout@design["nobs"] <- list(vec_size(self$group))
+        } else {
+            assert_mismatch_nobs(
+                self, layout_nobs, vec_size(self$group),
+                arg = "group"
+            )
+        }
+        layout
     },
-    layout = function(self, panel, index, group) list(group, index)
+    align = function(self, panel, index) list(self$group, index),
+    summary_align = function(self) c(FALSE, TRUE)
 )

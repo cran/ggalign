@@ -1,3 +1,64 @@
+# ggalign 0.1.0
+
+## Breaking changes
+
+* Now, all `*_free()` layouts have been removed, all layout has been splitted into two type: align 
+  discrete or continous vairables.
+
+## New features
+
+* new helper function `memo_order()` to reorder the oncoplot samples.
+
+* new `geom_subrect()` and `geom_subtile()` to subdivide rectangles with shared borders into a grid.
+
+* new `cross_link` function to reset the layout ordering index or layout panel group, and
+  add plot to connect selected observations.
+
+* new `cross_mark` function to reset the layout ordering index or layout panel group, and
+  add plot to annotate observations.
+
+* new `pair_links()` function to create pairs of observation groups.
+
+* new `mark_draw()`, `mark_line()`, `mark_tetragon()` to define the links to
+  connect the marked observations.
+
+* new `link_draw()`, `link_line()`, `link_tetragon()` to define the links to
+  connect a pair of observations
+
+* new `ggmark()` to add a plot to annotate selected observations.
+
+* new `element_vec()` functions to apply function to the vectorized fields of
+  the theme element object.
+
+* new `no_expansion()` function to remove scale expansion.
+
+* new layout `circle_layout()` to arrange plot in a circular.
+
+* new `raster_magick()` function to post-processing the image raster with `magick` package was added.
+
+* new `fortify_matrix.GISTIC()` method for `GISTIC` object from `maftools` package (#24).
+
+* `+` operator now will respect `with_quad()`.
+
+* new `ggalign_attr_set()` and `ggalign_attr_get()` for basic operations of attached attribute.
+
+* new `geom_draw()` function to draw ggplot2 layer with customized draw function.
+
+## Bug fixes
+
+* fix breaks and labels not work well in discrete scale (#30, #32)
+
+* fix wrong results of `fortify_matrix.MAF()` method
+
+## Improvements
+
+* Now, `with_quad()` wraps the object into a list with the class `with_quad`. This approach offers greater flexibility in defining the actions associated with `with_quad`, allowing for more customizable behavior (#26, @Yunuuuu).
+
+* Now, we always set as.table = FALSE when using ggplot2 `facet_*()` functions,
+  we don't need to reorder the `panel` when drawing.
+
+* `free_gg`, `align` and the new `cross_link` objects have been collapsed to one class `ggalign_plot`
+
 # ggalign 0.0.5
 
 ## Breaking changes
@@ -6,7 +67,7 @@
 
 * `set_context`, `order`, and `name` arguments in `align_*()` and `ggheatmap()` are soft-deprecated, which is advised to use `active` argument.
 
-* `guides`, `free_guides`, `free_spaces`, `free_labs`, and `plot_data` arguments in `align_*()` and `ggheatmap()` are deprecated, which is advised to use `plot_align` function instead.
+* `guides`, `free_guides`, `free_spaces`, `free_labs`, and `plot_data` arguments in `align_*()` and `ggheatmap()` are deprecated, which is advised to use `scheme_align` function instead.
 
 * `theme` argument in `align_*()` and `ggheatmap()` is deprecated, which is advised to use `plot_theme` function. 
 
@@ -36,7 +97,7 @@
 
 * new `plot_data()` function to control the data transformation of the plot in layout.
 
-* new `plot_align()` function to control specifications of the plot in layout.
+* new `scheme_align()` function to control specifications of the plot in layout.
 
 * new `with_quad()` function to control the `-` operator context.
 

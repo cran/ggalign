@@ -10,31 +10,33 @@ namespace_link <- function() NULL
 #' A `Layout` object defines how to place the plots.
 #'
 #' @keywords internal
-methods::setClass("Layout",
+# add suffix "Proto" to avoid conflict with ggplot2
+methods::setClass("LayoutProto",
     list(
         active = "ANY", # current active plot
-        controls = "list", # used to provide global parameters for all plots
+        schemes = "list", # used to provide global parameters for all plots
         # control the layout, `theme` will also be used by `ggsave`
         titles = "list",
-        annotation = "list", # To-DO add `pacth_titles` for layout
+        annotation = "list", # To-Do add `pacth_titles` for layout
         theme = "ANY",
         `_namespace` = "ANY"
     ),
     prototype = list(
-        active = NULL, titles = list(), annotation = list(), theme = NULL,
+        active = NULL, titles = list(),
+        annotation = list(), theme = NULL,
         `_namespace` = namespace_link
     )
 )
 
 #' @export
-print.Layout <- print.alignpatches
+print.LayoutProto <- print.alignpatches
 
 #' @importFrom grid grid.draw
 #' @exportS3Method
-grid.draw.Layout <- grid.draw.alignpatches
+grid.draw.LayoutProto <- grid.draw.alignpatches
 
 #' @export
-alignpatch.Layout <- function(x) alignpatch(ggalign_build(x))
+alignpatch.LayoutProto <- function(x) alignpatch(ggalign_build(x))
 
 #' Print Layout object
 #'
@@ -43,13 +45,14 @@ alignpatch.Layout <- function(x) alignpatch(ggalign_build(x))
 #' @importFrom methods show
 #' @export
 #' @keywords internal
-methods::setMethod("show", "Layout", function(object) {
+methods::setMethod("show", "LayoutProto", function(object) {
     print(object)
 })
 
 #' Subset a `Layout` object
 #'
-#' Used by [ggplot_build][ggplot2::ggplot_build] and [ggsave][ggplot2::ggsave]
+#' Used by [`ggplot_build`][ggplot2::ggplot_build] and
+#' [`ggsave`][ggplot2::ggsave]
 #'
 #' @param x A `Layout` object
 #' @param name A string of slot name in `Layout` object.
@@ -57,159 +60,58 @@ methods::setMethod("show", "Layout", function(object) {
 #' @importFrom methods slot
 #' @export
 #' @keywords internal
-methods::setMethod("$", "Layout", function(x, name) {
+methods::setMethod("$", "LayoutProto", function(x, name) {
     slot(x, name)
 })
 
-#########################################################
-#' Layout operator
-#'
-#' @description
-#' `r lifecycle::badge('experimental')`
-#'
-#'  - `+`: Adds elements to the active plot in the active layout.
-#'  - `&`: Applies elements to all plots in the layout.
-#'  - `-`: Adds elements to multiple plots in the layout.
-#'
-#' @details
-#' The `+` operator is straightforward and should be used as needed.
-#'
-#' In order to reduce code repetition `ggalign` provides two operators for
-#' adding ggplot elements (geoms, themes, facets, etc.) to multiple/all plots in
-#' `r rd_layout()`: `-` and `&`. See `vignette("operator")` for details.
-#'
-#' @param e1 A `r rd_layout()`.
-#' @param e2 An object to be added to the plot.
-#' @return A modified `Layout` object.
-#' @examples
-#' set.seed(123)
-#' small_mat <- matrix(rnorm(56), nrow = 7)
-#' ggheatmap(small_mat) +
-#'     anno_top() +
-#'     ggalign() +
-#'     geom_point(aes(y = value))
-#'
-#' # `&` operator apply it to all plots
-#' ggheatmap(small_mat) +
-#'     anno_top() +
-#'     align_dendro() &
-#'     theme(panel.border = element_rect(
-#'         colour = "red", fill = NA, linewidth = unit(2, "mm")
-#'     ))
-#'
-#' # If the active layout is the annotation stack, the `-` operator will only
-#' # add the elements to all plots in the active annotation stack:
-#' ggheatmap(small_mat) +
-#'     scale_fill_viridis_c() +
-#'     anno_left(size = 0.2) +
-#'     align_dendro(aes(color = branch), k = 3L) +
-#'     align_dendro(aes(color = branch), k = 3L) -
-#'     # Modify the the color scales of all plots in the left annotation
-#'     scale_color_brewer(palette = "Dark2")
-#'
-#' # If the active layout is the `ggstack()`/`stack_layout()` itself, `-`
-#' # applies the elements to all plots in the layout except the nested
-#' # `ggheatmap()`/`quad_layout()`.
-#' stack_alignv(small_mat) +
-#'     align_dendro() +
-#'     ggtitle("I'm from the parent stack") +
-#'     ggheatmap() +
-#'     # remove any active context
-#'     stack_active() +
-#'     align_dendro() +
-#'     ggtitle("I'm from the parent stack") -
-#'     # Modify the the color scales of all plots in the stack layout except the
-#'     # heatmap layout
-#'     scale_color_brewer(palette = "Dark2") -
-#'     # set the background of all plots in the stack layout except the heatmap
-#'     # layout
-#'     theme(plot.background = element_rect(fill = "red"))
-#'
-#' @name layout-operator
-NULL
+###########################################################
+default_layout <- function(layout) { # setup default value for the layout
+    layout@theme <- complete_theme(default_theme() + layout@theme)
 
-utils::globalVariables(".Generic")
+    # we by default, collect all guides
+    layout@schemes$scheme_align["guides"] <- list(
+        .subset2(.subset2(layout@schemes, "scheme_align"), "guides") %|w|% "tlbr"
+    )
+
+    # we by default, use `default_theme()`
+    layout@schemes$scheme_theme <- update_scheme(
+        .subset2(layout@schemes, "scheme_theme"),
+        new_scheme_theme(complete_theme(default_theme()))
+    )
+    layout
+}
+
+is_linear <- function(layout) UseMethod("is_linear")
+
+#' @export
+is_linear.StackLayout <- function(layout) TRUE
+
+#' @export
+is_linear.CircleLayout <- function(layout) FALSE
 
 ###########################################################
-default_layout <- function(layout) {
-    layout@theme <- default_theme() + layout@theme
-    # we by default, collect all guides
-    layout@controls$plot_align["guides"] <- list(
-        .subset2(.subset2(layout@controls, "plot_align"), "guides") %|w|% "tlbr"
-    )
-    # we by default, use `default_theme()`
-    layout@controls$plot_theme <- update_option(
-        .subset2(layout@controls, "plot_theme"),
-        new_plot_theme(default_theme())
-    )
-    layout
-}
-
-######################################################################
-# layout params are used to align the observations
-new_layout_params <- function(panel = NULL, index = NULL, nobs = NULL) {
-    list(panel = panel, index = index, nobs = nobs)
-}
-
-set_layout_params <- function(params) {
-    if (is.null(params)) return(NULL) # styler: off
-    # if `nobs` is not initialized, it means no `Align` object exist
-    # it's not necessary to initialize the `panel` and `index`
-    if (is.null(nobs <- .subset2(params, "nobs"))) {
-        return(params)
+inherit_parent_layout_schemes <- function(layout, schemes) {
+    if (is.null(schemes)) {
+        return(layout@schemes)
     }
-    panel <- .subset2(params, "panel") %||% factor(rep_len(1L, nobs))
-    index <- .subset2(params, "index") %||% reorder_index(panel)
-    new_layout_params(panel, index, nobs)
+    inherit_schemes(layout@schemes, schemes)
 }
 
-reorder_index <- function(panel, index = NULL) {
-    index <- index %||% seq_along(panel)
-    unlist(split(index, panel[index]), recursive = FALSE, use.names = FALSE)
-}
-
-#' @keywords internal
-update_layout_params <- function(layout, ..., params) {
-    UseMethod("update_layout_params")
-}
-
-#' @importFrom methods slot slot<-
-#' @export
-update_layout_params.QuadLayout <- function(layout, direction, ..., params) {
-    slot(layout, direction) <- params
-    if (is_horizontal(direction)) {
-        if (!is.null(left <- layout@left)) {
-            layout@left <- update_layout_params(left, params = params)
-        }
-        if (!is.null(right <- layout@right)) {
-            layout@right <- update_layout_params(right, params = params)
-        }
-    } else {
-        if (!is.null(top <- layout@top)) {
-            layout@top <- update_layout_params(top, params = params)
-        }
-        if (!is.null(bottom <- layout@bottom)) {
-            layout@bottom <- update_layout_params(bottom, params = params)
-        }
-    }
-    layout
-}
-
-#' @importFrom methods slot slot<-
-#' @export
-update_layout_params.StackLayout <- function(layout, ..., params) {
-    slot(layout, "layout") <- params
-    layout@plots <- lapply(layout@plots, function(plot) {
-        if (is_layout(plot)) {
-            update_layout_params(plot,
-                direction = layout@direction,
-                params = params
-            )
-        } else {
-            plot
-        }
-    })
-    layout
+inherit_parent_layout_theme <- function(layout, theme, spacing = NULL) {
+    if (is.null(theme)) return(layout@theme) # styler: off
+    # parent theme, set the global panel spacing,
+    # so that every panel aligns well
+    if (is.null(layout@theme)) return(theme) # styler: off
+    ans <- theme + layout@theme
+    if (is.null(spacing)) return(ans) # styler: off
+    switch(spacing,
+        x = ans + theme(
+            panel.spacing.x = calc_element("panel.spacing.x", theme)
+        ),
+        y = ans + theme(
+            panel.spacing.y = calc_element("panel.spacing.y", theme)
+        )
+    )
 }
 
 ############################################################
@@ -220,7 +122,6 @@ update_layout_params.StackLayout <- function(layout, ..., params) {
 #' @return The statistics
 #' @export
 ggalign_stat <- function(x, ...) {
-    rlang::check_dots_used()
     UseMethod("ggalign_stat")
 }
 
@@ -236,65 +137,158 @@ ggalign_stat.QuadLayout <- function(x, position, ...) {
 #' @export
 #' @rdname ggalign_stat
 ggalign_stat.StackLayout <- function(x, what, ...) {
-    if (is.null(ans <- .subset2(x@plots, what))) {
-        cli::cli_abort("Cannot find {what} plot in this stack layout")
-    }
-    ggalign_stat(x = ans, ...)
+    plot_list <- x@plot_list
+    index <- vec_as_location2(
+        what,
+        n = length(plot_list),
+        names = names(plot_list),
+        missing = "error"
+    )
+    ggalign_stat(x = .subset2(plot_list, index), ...)
 }
 
 #' @export
-ggalign_stat.align <- function(x, ...) {
-    .subset2(.subset2(x, "Object"), "statistics")
+ggalign_stat.ggalign_plot <- function(x, ...) {
+    ggalign_stat(x@align, ...)
+}
+
+#' @export
+ggalign_stat.Align <- function(x, ...) {
+    rlang::check_dots_empty()
+    .subset2(x, "statistics")
 }
 
 #' @export
 ggalign_stat.default <- function(x, ...) {
-    cli::cli_abort("no statistics found for {.obj_type_friendly {x}}")
+    cli_abort(sprintf("no statistics found for %s", object_name(x)))
 }
+
+#' @export
+ggalign_stat.AlignGg <- ggalign_stat.default
 
 ####################################################
-# we keep an attribute `ggalign` across all data
-# this is used to pass additional annotation informations
-restore_attr_ggalign <- function(data, original) {
-    if (is.null(attr(data, "ggalign")) &&
-        !is.null(ggalign_params <- attr(original, "ggalign"))) {
-        attr(data, "ggalign") <- ggalign_params
-    }
-    data
-}
-
-#' Get data from the `ggalign` attribute
+#' Get Data from the Attribute Attached by ggalign
 #'
-#' This function extracts data from the `ggalign` attribute retained in the data
-#' when rendering `r rd_layout()`. The `ggalign` attribute holds supplementary
-#' information for input data.
+#' @description
+#' `ggalign_attr` provides access to supplementary information stored as
+#' attributes during the layout rendering process. These attributes, commonly
+#' attached during data transformation by functions like [`fortify_matrix()`] or
+#' [`fortify_data_frame()`], can include essential details such as filtered or
+#' supplementary data that inform downstream operations.
 #'
-#' @param x Input data for the function used to transform the layout data.
+#' An additional attribute, which stores the factor levels, can be accessed with
+#' `ggalign_lvls`.
+#'
+#' @details
+#' Attributes attached to the data are especially useful when the input data is
+#' transformed in ways that limit access to the complete dataset. For example,
+#' [`fortify_matrix.MAF()`] might filter mutation data while adding attributes
+#' that retain important context, such as the total number of observations, for
+#' detailed or aggregated analyses. Additionally, it stores the levels of
+#' `Variant_Classification` for further usage.
+#'
+#' @param x Data used, typically inherited from the layout `r rd_layout()`.
 #' @param field A string specifying the particular data to retrieve from the
-#' `ggalign` attribute. If `NULL`, the entire `ggalign` attribute will be
-#' returned.  Commonly, this attribute list is attached by [`fortify_matrix()`]
-#' or [`fortify_data_frame()`] functions (refer to the `ggalign attributes`
-#' section in the documentation for details). For examples, see
-#' [`fortify_matrix.MAF()`].
-#'
-#' @return The specified data from the `ggalign` attribute or `NULL` if it is
-#' unavailable.
+#' attached attribute. If `NULL`, the entire attached attribute list will be
+#' returned.
+#' @param check A boolean indicating whether to check if the `field` exists. If
+#' `TRUE`, an error will be raised if the specified `field` does not exist.
+#' @return
+#' - `ggalign_attr`: The specified data from the attached supplementary data or
+#' `NULL` if it is unavailable.
+#' - `ggalign_lvls`: The attached supplementary levels or `NULL` if it is
+#'   unavailable.
 #'
 #' @export
-ggalign_attr <- function(x, field = NULL) {
-    if (is.null(x <- attr(x, "ggalign")) || is.null(field)) {
+ggalign_attr <- function(x, field = NULL, check = TRUE) {
+    assert_string(field, allow_null = TRUE)
+    if (is.null(x <- ggalign_attr_get(x)) || is.null(field)) {
         return(x)
+    }
+    if (isTRUE(check) && !rlang::has_name(x, field)) {
+        cli_abort("Cannot find {field} in {.arg x}")
     }
     .subset2(x, field)
 }
 
-add_ggalign_attr <- function(x, values) {
-    if (is.null(suppl <- attr(x, "ggalign"))) {
-        attr(x, "ggalign") <- values
-    } else {
-        attr(x, "ggalign") <- c(suppl, values)
+#' @export
+#' @rdname ggalign_attr
+ggalign_lvls <- function(x) ggalign_lvls_get(x)
+
+#' Attach supplementary data and levels for ggalign
+#'
+#' @param .data Input data for the layout.
+#' @param ... A list of data to be attached.
+#' @param .lvls A character vector representing the attached levels.
+#' @note Used by developers in [`fortify_matrix()`], [`fortify_data_frame()`],
+#'   and other related methods.
+#' @seealso [`ggalign_attr()`]/[`ggalign_lvls()`]
+#' @export
+ggalign_data_set <- function(.data, ..., .lvls = NULL) {
+    if (...length() > 0L) {
+        .data <- ggalign_attr_set(.data, list(...))
     }
+    if (!is.null(.lvls)) {
+        .data <- ggalign_lvls_set(.data, .lvls)
+    }
+    # to prevent the print of attributes
+    if (!is.null(ggalign_attr_get(.data)) ||
+        !is.null(ggalign_lvls_get(.data))) {
+        .data <- add_class(.data, "ggalign_data")
+    }
+    .data
+}
+
+#' @export
+print.ggalign_data <- function(x, ...) {
+    print(
+        remove_class(
+            ggalign_lvls_remove(ggalign_attr_remove(x)),
+            "ggalign_data"
+        )
+    )
+    invisible(x)
+}
+
+ggalign_attr_set <- function(x, values) {
+    attr(x, ".__ggalign_attr__") <- values
     x
+}
+
+ggalign_attr_get <- function(x) attr(x, ".__ggalign_attr__", exact = TRUE)
+
+ggalign_attr_remove <- function(x) ggalign_attr_set(x, NULL)
+
+ggalign_lvls_set <- function(x, lvls) {
+    attr(x, ".__ggalign_levels__") <- lvls
+    x
+}
+
+ggalign_lvls_get <- function(x) attr(x, ".__ggalign_levels__", exact = TRUE)
+
+ggalign_lvls_remove <- function(x) ggalign_lvls_set(x, NULL)
+
+# we keep a special attribute across all data
+# this is used to pass additional annotation informations
+ggalign_data_restore <- function(data, original) {
+    if (is.null(data) || is.waive(data)) return(data) # styler: off
+    if (is.null(ggalign_attr_get(data)) && # no attached attribute
+        # the original has attached attribute
+        !is.null(value <- ggalign_attr_get(original))) {
+        data <- ggalign_attr_set(data, value)
+    }
+
+    if (is.null(ggalign_lvls_get(data)) && # no attached levels
+        # the original has attached levels
+        !is.null(value <- ggalign_lvls_get(original))) {
+        data <- ggalign_lvls_set(data, value)
+    }
+    # to prevent the print of attributes
+    if (!is.null(ggalign_attr_get(data)) ||
+        !is.null(ggalign_lvls_get(data))) {
+        data <- add_class(data, "ggalign_data")
+    }
+    data
 }
 
 #############################################################
@@ -307,7 +301,7 @@ add_ggalign_attr <- function(x, values) {
 #'
 #' @importFrom methods is
 #' @export
-is_layout <- function(x) is(x, "Layout")
+is_layout <- function(x) is(x, "LayoutProto")
 
 #' @examples
 #' # for quad_layout()
@@ -322,12 +316,20 @@ is_quad_layout <- function(x) is(x, "QuadLayout")
 
 #' @examples
 #' # for stack_layout()
-#' is_stack_layout(stack_align(1:10))
-#' is_stack_layout(stack_free(1:10))
+#' is_stack_layout(stack_discrete("h", 1:10))
+#' is_stack_layout(stack_continuous("h", 1:10))
 #'
 #' @export
 #' @rdname is_layout
 is_stack_layout <- function(x) is(x, "StackLayout")
+
+#' @export
+#' @rdname is_layout
+is_stack_cross <- function(x) is(x, "StackCross")
+
+#' @export
+#' @rdname is_layout
+is_circle_layout <- function(x) is(x, "CircleLayout")
 
 #' @examples
 #' # for heatmap_layout()
@@ -341,3 +343,5 @@ is_heatmap_layout <- function(x) is(x, "HeatmapLayout")
 #' @export
 #' @rdname is_layout
 is_ggheatmap <- is_heatmap_layout
+
+is_cross_layout <- function(x) is_stack_cross(x)
