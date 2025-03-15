@@ -11,7 +11,7 @@
   center = FALSE,
   tree_type = NULL,
   tip_pos = NULL,
-  data_arg = caller_arg(data),
+  data_arg = NULL,
   call = NULL
 )
 }
@@ -45,8 +45,8 @@ of the number of tips in \code{tree}.}
 improve messages. Not used by the user.}
 
 \item{call}{The execution environment where \code{data} and other arguments for
-the method are collected, e.g., \code{\link[rlang:stack]{caller_env()}}.
-Developers can use it to improve messages. Not used by the user.}
+the method are collected. Developers can use it to improve messages. Not
+used by the user.}
 }
 \value{
 A \verb{data frame} with the node coordinates:
@@ -73,10 +73,10 @@ for edge.
 }
 
 \seealso{
-Other fortify_data_frame methods: 
+Other \code{\link[=fortify_data_frame]{fortify_data_frame()}} methods:
 \code{\link{fortify_data_frame.character}()},
 \code{\link{fortify_data_frame.default}()},
 \code{\link{fortify_data_frame.dendrogram}()},
 \code{\link{fortify_data_frame.matrix}()}
 }
-\concept{fortify_data_frame methods}
+\concept{fortify_data_frame}

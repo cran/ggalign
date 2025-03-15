@@ -193,7 +193,7 @@ AlignPhylo <- ggproto("AlignPhylo", Align,
 #' @inheritParams fortify_matrix
 #' @return A one-column matrix where the tip labels are the values, and the row
 #' names will also be the tip labels.
-#' @family fortify_matrix methods
+#' @family fortify_matrix
 #' @export
 fortify_matrix.phylo <- function(data, ..., data_arg = caller_arg(data),
                                  call = NULL) {
@@ -233,14 +233,14 @@ fortify_matrix.phylo <- function(data, ..., data_arg = caller_arg(data),
 #'  - `x` and `y`: x-axis and y-axis coordinates for the start node of the edge.
 #'  - `xend` and `yend`: the x-axis and y-axis coordinates of the terminal node
 #'                       for edge.
-#' @family fortify_data_frame methods
+#' @family fortify_data_frame
 #' @export
 fortify_data_frame.phylo <- function(data, ..., type = "rectangle",
                                      center = FALSE,
                                      tree_type = NULL, tip_pos = NULL,
-                                     data_arg = caller_arg(data),
-                                     call = NULL) {
+                                     data_arg = NULL, call = NULL) {
     call <- call %||% current_call()
+    data_arg <- data_arg %||% "data"
     rlang::check_dots_empty(call = call)
     type <- arg_match0(type, c("rectangle", "triangle"))
     rectangle <- type == "rectangle"

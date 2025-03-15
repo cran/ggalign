@@ -14,7 +14,8 @@ rd_chain_what <- function() {
 rd_quad_position <- function(action) {
     sprintf(
         "A string of %s indicates which annotation stack should be %s",
-        oxford_or(.TLBR), action
+        oxford_or(.TLBR),
+        action
     )
 }
 

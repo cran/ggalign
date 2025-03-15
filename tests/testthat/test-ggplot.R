@@ -91,14 +91,14 @@ test_that("geom_pie works well", {
     )
 })
 
-test_that("geom_draw2() workds well", {
+test_that("`geom_gshape()` works well", {
     library(grid)
     expect_snapshot_error(ggplot2::ggsave(
         tempfile(fileext = ".png"),
         plot = ggplot(data.frame(value = letters[seq_len(5)], y = seq_len(5))) +
-            geom_draw2(aes(x = 1, y = y, draw = value, fill = value))
+            geom_gshape(aes(x = 1, y = y, gshape = value, fill = value))
     ))
-    draw_mapping <- list(
+    gshape_mapping <- list(
         function(x, y, width, height, fill) {
             rectGrob(x, y,
                 width = width, height = height,
@@ -140,22 +140,58 @@ test_that("geom_draw2() workds well", {
         }
     )
     expect_doppelganger(
-        "geom_draw2",
+        "geom_gshape",
         ggplot(data.frame(value = letters[seq_len(5)], y = seq_len(5))) +
-            geom_draw2(aes(x = 1, y = y, draw = value, fill = value)) +
-            scale_draw_manual(values = draw_mapping) +
+            geom_gshape(aes(x = 1, y = y, gshape = value, fill = value)) +
+            scale_gshape_manual(values = gshape_mapping) +
             scale_fill_brewer(palette = "Dark2")
     )
     set.seed(1L)
     value <- sample(letters, 5L)
     expect_doppelganger(
-        "geom_draw2_order",
+        "geom_gshape_order",
         ggplot(data.frame(
             value = c(value, value[5L]),
             y = c(1, 2, 3, 1, 2, 3)
         )) +
-            geom_draw2(aes(x = 1, y = y, draw = value, fill = value)) +
-            scale_draw_manual(values = draw_mapping) +
+            geom_gshape(aes(x = 1, y = y, gshape = value, fill = value)) +
+            scale_gshape_manual(values = gshape_mapping) +
             scale_fill_brewer(palette = "Dark2")
+    )
+})
+
+test_that("`coord_circle()` works well", {
+    expect_doppelganger(
+        "coord_circle() default",
+        ggplot(mtcars, aes(disp, mpg)) +
+            geom_point() +
+            coord_circle()
+    )
+    expect_doppelganger(
+        "coord_circle() start and end",
+        ggplot(mtcars, aes(disp, mpg)) +
+            geom_point() +
+            coord_circle(start = -0.4 * pi, end = 0.4 * pi)
+    )
+    expect_doppelganger(
+        "coord_circle() inner.radius and outer.radius",
+        ggplot(mtcars, aes(disp, mpg)) +
+            geom_point() +
+            coord_circle(inner.radius = 0.3, outer.radius = 0.5)
+    )
+})
+
+test_that("`facet_sector()` works well", {
+    expect_doppelganger(
+        "facet_sector() default",
+        ggplot(mtcars, aes(disp, mpg)) +
+            geom_point() +
+            facet_sector(vars(cyl))
+    )
+    expect_doppelganger(
+        "facet_sector() spacing_theta rel()",
+        ggplot(mtcars, aes(disp, mpg)) +
+            geom_point() +
+            facet_sector(vars(cyl), spacing_theta = rel(0.01))
     )
 })

@@ -62,12 +62,14 @@ RIGHT_BORDER <- 7L + 1L
 .TLBR <- c("top", "left", "bottom", "right")
 .tlbr <- c("t", "l", "b", "r")
 
+# position is a single string contains `.tlbr`
 setdiff_position <- function(x, y) gsub(sprintf("[%s]", y), "", x)
 union_position <- function(x, y) paste0(x, gsub(sprintf("[%s]", x), "", y))
 split_position <- function(x) {
     vec_unique(.subset2(strsplit(x, "", fixed = TRUE), 1L))
 }
 
+# pos is an atomic character 
 setup_pos <- function(x) complete_pos(split_position(x))
 
 complete_pos <- function(x) {
@@ -146,13 +148,14 @@ alignpatch.default <- function(x) {
 #' @export
 alignpatch.NULL <- function(x) NULL
 
-abort_no_method <- function(plot, method) {
+path_no_method <- function(plot, method) {
     cli_abort("no {.fn {method}} method for {.obj_type_friendly {plot}}")
 }
 
 #' @importFrom ggplot2 ggproto
 #' @importFrom grid unit.c
-Patch <- ggproto(c("Patch", "ggalign"), NULL,
+Patch <- ggproto(
+    "Patch", NULL,
     # following fields will be added by `alignpatch()`
     # plot = NULL,
     # following fields will be added in `alignpatches$patch_gtable()`
@@ -163,17 +166,17 @@ Patch <- ggproto(c("Patch", "ggalign"), NULL,
     #' `alignpatches` object?
     #' @noRd
     set_guides = function(self, guides) {
-        abort_no_method(self$plot, "set_guides")
+        path_no_method(self$plot, "set_guides")
     },
 
     #' @param theme `theme` from the parent alignpatches
     #' @return theme for current `alignpatches`.
     #' @noRd
     set_theme = function(self, theme) {
-        abort_no_method(self$plot, "set_theme")
+        path_no_method(self$plot, "set_theme")
     },
     patch_gtable = function(self, plot = self$plot) {
-        abort_no_method(self$plot, "patch_gtable")
+        path_no_method(self$plot, "patch_gtable")
     },
     collect_guides = function(self, guides = self$guides, gt = self$gt) {
         if (is.null(guides)) return(list()) # styler: off
@@ -300,14 +303,14 @@ Patch <- ggproto(c("Patch", "ggalign"), NULL,
         )
     },
     free_border = function(self, borders, gt = self$gt) {
-        abort_no_method(self$plot, "free_border")
+        path_no_method(self$plot, "free_border")
     },
     align_free_border = function(self, borders,
                                  t = NULL, l = NULL, b = NULL, r = NULL,
                                  gt = self$gt) {
-        abort_no_method(self$plot, "align_free_border")
+        path_no_method(self$plot, "align_free_border")
     },
     free_lab = function(self, labs, gt = self$gt) {
-        abort_no_method(self$plot, "free_lab")
+        path_no_method(self$plot, "free_lab")
     }
 )

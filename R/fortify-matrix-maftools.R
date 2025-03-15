@@ -1,4 +1,4 @@
-#' Build a matrix from a maftools object
+#' Build a Matrix for OncoPrint
 #'
 #' @description
 #' Convert `MAF` object to a matrix:
@@ -31,12 +31,12 @@
 #'    `maftools::getSampleSummary()` for details.
 #'  - `sample_anno`: sample clinical informations. See
 #'    `maftools::getClinicalData()` for details.
-#'  - `n_genes`: Total of genes.
-#'  - `n_samples`: Total of samples.
+#'  - `n_genes`: Total number of genes.
+#'  - `n_samples`: Total number of samples.
 #'  - `titv`: A list of `data.frames` with Transitions and Transversions
 #'    summary. See `maftools::titv()` for details.
 #'
-#' @family fortify_matrix methods
+#' @family fortify_matrix
 #' @importFrom utils getFromNamespace
 #' @importFrom rlang is_string
 #' @export
@@ -45,7 +45,7 @@ fortify_matrix.MAF <- function(data, ..., genes = NULL, n_top = NULL,
                                remove_empty_samples = TRUE,
                                collapse_vars = TRUE,
                                use_syn = TRUE, missing_genes = "error",
-                               data_arg = caller_arg(data),
+                               data_arg = NULL,
                                call = NULL) {
     call <- call %||% current_call()
     rlang::check_dots_empty(call = call)
@@ -77,14 +77,14 @@ fortify_matrix.MAF <- function(data, ..., genes = NULL, n_top = NULL,
         )
     }
 
-    getSampleSummary <- getFromNamespace("getSampleSummary", "maftools")
-    getGeneSummary <- getFromNamespace("getGeneSummary", "maftools")
-    getClinicalData <- getFromNamespace("getClinicalData", "maftools")
+    getSampleSummary <- getExportedValue("maftools", "getSampleSummary")
+    getGeneSummary <- getExportedValue("maftools", "getGeneSummary")
+    getClinicalData <- getExportedValue("maftools", "getClinicalData")
     sample_summary <- new_data_frame(getSampleSummary(data))
     gene_summary <- new_data_frame(getGeneSummary(data))
     sample_anno <- new_data_frame(getClinicalData(data))
 
-    titv <- getFromNamespace("titv", "maftools")
+    titv <- getExportedValue("maftools", "titv")
     titv <- titv(data, useSyn = use_syn, plot = FALSE)
     titv <- lapply(titv, new_data_frame)
 
@@ -171,9 +171,9 @@ fortify_matrix.MAF <- function(data, ..., genes = NULL, n_top = NULL,
 
     # if `maftools` is installed, `data.table` must have been installed
     # No need to check if `data.table` is installed
-    dcast <- getFromNamespace("dcast", "data.table")
-    setDT <- getFromNamespace("setDT", "data.table")
-    setDF <- getFromNamespace("setDF", "data.table")
+    dcast <- getExportedValue("data.table", "dcast")
+    setDT <- getExportedValue("data.table", "setDT")
+    setDF <- getExportedValue("data.table", "setDF")
     setDT(ans)
     ans <- dcast(ans, Hugo_Symbol ~ Tumor_Sample_Barcode,
         value.var = "Variant_Classification"
@@ -258,7 +258,7 @@ fortify_matrix.MAF <- function(data, ..., genes = NULL, n_top = NULL,
 #' @param data A [`MAF`][maftools::read.maf] object.
 #' @param shape Not used currently.
 #' @seealso [`fortify_matrix.MAF_pathways()`]
-#' @family tune methods
+#' @family tune
 #' @export
 tune.MAF <- function(data, shape = NULL) {
     if (!is.null(shape)) {
@@ -285,7 +285,7 @@ tune.MAF <- function(data, shape = NULL) {
 fortify_matrix.MAF_pathways <- function(data, ..., pathdb = "smgbp",
                                         remove_empty_pathways = TRUE,
                                         remove_empty_samples = TRUE,
-                                        data_arg = caller_arg(data),
+                                        data_arg = NULL,
                                         call = NULL) {
     call <- call %||% current_call()
     rlang::check_dots_empty(call = call)
@@ -316,8 +316,8 @@ fortify_matrix.MAF_pathways <- function(data, ..., pathdb = "smgbp",
         pathdb <- vec_unique(pathdb)
         pathway_summary <- get_pw_summary(maf, pathways = pathdb)
     }
-    getSampleSummary <- getFromNamespace("getSampleSummary", "maftools")
-    getClinicalData <- getFromNamespace("getClinicalData", "maftools")
+    getSampleSummary <- getExportedValue("maftools", "getSampleSummary")
+    getClinicalData <- getExportedValue("maftools", "getClinicalData")
     sample_summary <- new_data_frame(getSampleSummary(maf))
     sample_anno <- new_data_frame(getClinicalData(maf))
 
@@ -340,9 +340,9 @@ fortify_matrix.MAF_pathways <- function(data, ..., pathdb = "smgbp",
 
     # if `maftools` is installed, `data.table` must have been installed
     # No need to check if `data.table` is installed
-    dcast <- getFromNamespace("dcast", "data.table")
-    setDT <- getFromNamespace("setDT", "data.table")
-    setDF <- getFromNamespace("setDF", "data.table")
+    dcast <- getExportedValue("data.table", "dcast")
+    setDT <- getExportedValue("data.table", "setDT")
+    setDF <- getExportedValue("data.table", "setDF")
     setDT(ans)
     ans <- dcast(ans, pathways ~ Tumor_Sample_Barcode,
         value.var = "Alt", fill = NA_character_
@@ -433,12 +433,12 @@ fortify_matrix.MAF_pathways <- function(data, ..., pathdb = "smgbp",
 #'    `data@@gene.summary` for details.
 #'  - `summary`: A data frame of summary information. See `data@@summary` for
 #'    details.
-#' @family fortify_matrix methods
+#' @family fortify_matrix
 #' @export
 fortify_matrix.GISTIC <- function(data, ..., n_top = NULL, bands = NULL,
                                   ignored_bands = NULL, sample_anno = NULL,
                                   remove_empty_samples = TRUE,
-                                  data_arg = caller_arg(data),
+                                  data_arg = NULL,
                                   call = NULL) {
     call <- call %||% current_call()
     rlang::check_dots_empty(call = call)
