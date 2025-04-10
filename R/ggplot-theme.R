@@ -13,7 +13,7 @@ default_theme <- function() {
 # Check if user has set the theme
 is_theme_unset <- function() {
     isTRUE(all.equal(
-        complete_theme(.subset2(ggfun("ggplot_global"), "theme_default")),
+        complete_theme(ggfun("ggplot_global")$theme_default),
         complete_theme(theme_get())
     ))
 }
@@ -33,7 +33,7 @@ theme_panel_border <- function() theme(panel.border = element_rect(fill = NA))
 #' @importFrom utils packageVersion
 #' @importFrom rlang try_fetch
 complete_theme <- function(theme) {
-    if (packageVersion("ggplot2") > "3.5.1") {
+    if (packageVersion("ggplot2") > "3.5.2") {
         ggfun("complete_theme")(theme)
     } else {
         ggfun("plot_theme")(list(theme = theme))

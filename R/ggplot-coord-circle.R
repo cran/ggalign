@@ -4,7 +4,7 @@
 #' additional customization options.
 #'
 #' @inheritParams ggplot2::coord_radial
-#' @inheritParams ggplot2::coord_cartesian
+#' @param thetalim,rlim Limits for the `theta` and `r` axes.
 #' @param inner.radius A numeric in `[0, 1)` indicates the inner radius.
 #' @param outer.radius A numeric in `(0, 1]` indicates the outer radius.
 #' [`coord_radial()`][ggplot2::coord_radial] by default uses `0.8`.
@@ -22,22 +22,41 @@
 #'         inner.radius = 0.3, outer.radius = 0.5
 #'     )
 #' @importFrom ggplot2 ggproto
+#' @importFrom rlang arg_match0
 #' @export
 coord_circle <- function(theta = "x", start = 0, end = NULL,
-                         xlim = NULL, ylim = NULL, expand = FALSE,
+                         thetalim = NULL, rlim = NULL, expand = FALSE,
                          direction = 1, clip = "off",
                          r.axis.inside = NULL, rotate.angle = FALSE,
                          inner.radius = 0, outer.radius = 0.95) {
-    theta <- rlang::arg_match0(theta, c("x", "y"))
+    theta <- arg_match0(theta, c("x", "y"))
     assert_number_decimal(start, allow_infinite = FALSE)
     assert_number_decimal(end, allow_infinite = FALSE, allow_null = TRUE)
-    if (packageVersion("ggplot2") <= "3.5.1") {
+    if (packageVersion("ggplot2") <= "3.5.2") {
         assert_bool(expand)
     }
-    clip <- rlang::arg_match0(clip, c("off", "on"))
-    if (!is.numeric(r.axis.inside)) {
-        assert_bool(r.axis.inside, allow_null = TRUE)
+    clip <- arg_match0(clip, c("off", "on"))
+    valid_inside_axis <- .standalone_types_check_assert_call(
+        ffi_standalone_is_bool_1.0.7,
+        r.axis.inside,
+        FALSE,
+        TRUE
+    ) || .standalone_types_check_assert_call(
+        ffi_standalone_check_number_1.0.7,
+        r.axis.inside,
+        allow_decimal = TRUE,
+        NULL,
+        NULL,
+        FALSE,
+        FALSE,
+        TRUE
+    ) == 0L
+    if (!valid_inside_axis) {
+        cli_abort(
+            "{.arg r.axis.inside} must be a single boolean value or a number"
+        )
     }
+
     assert_bool(rotate.angle)
     assert_number_decimal(inner.radius,
         min = 0, max = 1,
@@ -63,7 +82,7 @@ coord_circle <- function(theta = "x", start = 0, end = NULL,
     inner_radius <- c(inner.radius, outer.radius) / 2
 
     ggproto(NULL, CoordCircle,
-        limits = list(x = xlim, y = ylim),
+        limits = list(theta = thetalim, r = rlim),
         theta = theta,
         r = r,
         arc = arc,
@@ -78,13 +97,20 @@ coord_circle <- function(theta = "x", start = 0, end = NULL,
 
 #' @importFrom ggplot2 ggproto_parent
 circle_panel_params <- function(self, scale_x, scale_y, params = list()) {
+    if (self$theta == "x") {
+        xlimits <- self$limits$theta
+        ylimits <- self$limits$r
+    } else {
+        xlimits <- self$limits$r
+        ylimits <- self$limits$theta
+    }
     new <- c(
         view_scales_polar(
-            scale_x, self$theta, self$limits$x,
+            scale_x, self$theta, xlimits,
             expand = params$expand[c(4, 2)] %||% self$expand
         ),
         view_scales_polar(
-            scale_y, self$theta, self$limits$y,
+            scale_y, self$theta, ylimits,
             expand = params$expand[c(3, 1)] %||% self$expand
         )
     )

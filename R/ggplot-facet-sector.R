@@ -20,16 +20,16 @@
 #' @export
 facet_sector <- function(facets, radial = NULL,
                          spacing_theta = pi / 180, drop = TRUE) {
-    # For FacetCircle
-    facets <- ggfun(
-        version <= "3.5.1" ~ "wrap_as_facets_list",
-        "compact_facets"
-    )(facets)
+    if (packageVersion("ggplot2") > "3.5.2") {
+        facets <- ggfun("compact_facets")(facets)
+    } else {
+        facets <- ggfun("wrap_as_facets_list")(facets)
+    }
 
     # @param strip.position By default, the labels are displayed on the
     # `"outer"` of the plot. Allowed values are `r oxford_or(c("outer",
     # "inner"))`
-    # strip.position <- rlang::arg_match0(strip.position, c("outer", "inner"))
+    # strip.position <- arg_match0(strip.position, c("outer", "inner"))
     # strip.position <- switch(strip.position,
     #     outer = "top",
     #     inner = "bottom"
@@ -38,11 +38,11 @@ facet_sector <- function(facets, radial = NULL,
     assert_bool(drop)
 
     # TO-DO: remove this line and update to
-    # the next version of ggplot2 (> 3.5.1)
-    if (packageVersion("ggplot2") <= "3.5.1") {
-        dir <- "h"
-    } else {
+    # the next version of ggplot2 (> 3.5.2)
+    if (packageVersion("ggplot2") > "3.5.2") {
         dir <- "lt"
+    } else {
+        dir <- "h"
     }
     radial <- radial %||% coord_circle()
     if (!inherits(radial, "CoordRadial")) {
@@ -82,7 +82,7 @@ ggplot_add.ggalign_facet_sector <- function(object, plot, object_name) {
             ggproto_parent(ParentLayout, self)$setup_panel_params()
             if (!is.null(self$facet$setup_panel_params)) {
                 self$panel_params <- self$facet$setup_panel_params(
-                    self$coord, self$panel_params
+                    self$panel_params, self$coord
                 )
             }
             invisible()
@@ -95,7 +95,7 @@ ggplot_add.ggalign_facet_sector <- function(object, plot, object_name) {
 #' @importFrom ggplot2 ggproto ggproto_parent
 FacetSector <- ggproto(
     "FacetSector", ggplot2::FacetWrap,
-    setup_panel_params = function(self, coord, panel_params) {
+    setup_panel_params = function(self, panel_params, coord, ...) {
         # Ensure the CoordCircle is not changed by the users
         if (!inherits(coord, "CoordRadial")) {
             cli_abort(c(

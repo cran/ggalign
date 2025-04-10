@@ -1,5 +1,5 @@
 #' @importFrom ggplot2 .pt
-ggfun <- function(..., mode = "any") from_namespace("ggplot2", ..., mode = mode)
+ggfun <- function(fn, mode = "any") from_namespace("ggplot2", fn, mode = mode)
 
 allow_lambda <- function(x) {
     if (rlang::is_formula(x)) rlang::as_function(x) else x
@@ -35,6 +35,10 @@ is_palette_unset <- function(type, aes) {
     is.null(getOption(sprintf("ggplot2.%s.%s", type, aes)))
 }
 
+# A guide-box should be a `zeroGrob()` or a `gtable` object
+#' @importFrom gtable is.gtable
+maybe_guide_box <- function(x) inherits(x, "zeroGrob") || is.gtable(x)
+
 ######################################################
 gguse_data <- function(plot, data) {
     # ggplot use waiver() to indicate no data
@@ -43,7 +47,7 @@ gguse_data <- function(plot, data) {
 }
 
 ggremove_margin <- function(plot, direction) {
-    if (!is.null(direction) && packageVersion("ggplot2") > "3.5.1") {
+    if (!is.null(direction) && packageVersion("ggplot2") > "3.5.2") {
         plot <- plot + switch_direction(
             direction,
             theme(plot.margin = margin(t = 0, r = NA, b = 0, l = NA)),
@@ -68,13 +72,11 @@ ggplot_add.ggalign_default_expansion <- function(object, plot, object_name) {
     plot$facet <- ggproto(
         NULL,
         ParentFacet,
-        init_scales = function(
-            self,
-            layout,
-            x_scale = NULL,
-            y_scale = NULL,
-            params
-        ) {
+        init_scales = function(self,
+                               layout,
+                               x_scale = NULL,
+                               y_scale = NULL,
+                               params) {
             if (!is.null(x_scale) && !is.null(.subset2(object, "x"))) {
                 x_scale$expand <- x_scale$expand %|w|% .subset2(object, "x")
             }
@@ -106,8 +108,7 @@ reverse_continuous_scale <- function(plot, axis) {
         }
     } else {
         plot <- plot +
-            switch(
-                axis,
+            switch(axis,
                 x = ggplot2::scale_x_reverse(),
                 y = ggplot2::scale_y_reverse()
             )

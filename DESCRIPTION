@@ -1,6 +1,6 @@
 Package: ggalign
 Title: A 'ggplot2' Extension for Consistent Axis Alignment
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: c(
         person("Yun", "Peng", , "yunyunp96@163.com", role = c("aut", "cre"), comment = c(ORCID = "0000-0003-2801-3332")),
         person("Shixiang", "Wang", , "w_shixiang@163.com", role = "aut", comment = c(ORCID = "0000-0001-9855-7357")),
@@ -12,7 +12,7 @@ Description: A 'ggplot2' extension offers various tools the creation of complex,
     complex visualizations. It excels in multi-omics research—such as genomics
     and microbiomes—by simplifying the visualization of intricate relationships
     between datasets, for example, linking genes to pathways. Whether you need
-    to stack plots, arrange them around a central figure, or use a circular
+    to stack plots, arrange them around a central figure, or create a circular
     layout, 'ggalign' delivers flexibility and accuracy with minimal effort.
 License: MIT + file LICENSE
 URL: https://github.com/Yunuuuu/ggalign,
@@ -21,9 +21,12 @@ BugReports: https://github.com/Yunuuuu/ggalign/issues
 Depends: ggplot2 (>= 3.5.0)
 Imports: cli, grDevices, grid, gtable, lifecycle, methods, rlang,
         stats, utils, vctrs (>= 0.5.0)
-Suggests: ggrastr, gridGraphics, magick, patchwork, ragg, knitr,
-        rmarkdown, scales, testthat (>= 3.0.0), vdiffr
+Suggests: gridGraphics, ragg, scales, magick, testthat (>= 3.0.0),
+        vdiffr
+Enhances: patchwork, ggrastr
 ByteCompile: true
+Config/Needs/website: ggh4x, R.utils, dplyr, tidyr, bench, pheatmap,
+        gplots, maftools, ComplexHeatmap, seriation
 Config/testthat/edition: 3
 Encoding: UTF-8
 RoxygenNote: 7.3.2
@@ -43,11 +46,13 @@ Collate: 'active.R' 'plot-.R' 'align-.R' 'align-hclust.R'
         'cross-mark.R' 'cross-none.R' 'fortify-data-frame-.R'
         'fortify-data-frame-dendrogram.R' 'fortify-matrix-.R'
         'fortify-matrix-list.R' 'fortify-matrix-maftools.R'
-        'fortify-matrix-matrix.R' 'geom-draw.R' 'geom-gshape.R'
-        'geom-pie.R' 'geom-subrect.R' 'geom-tile3d.R'
-        'ggalign-package.R' 'ggalign.R' 'ggcross.R' 'ggfree.R'
-        'ggmark.R' 'ggplot-coord-circle.R' 'ggplot-facet-sector.R'
+        'fortify-matrix-matrix.R' 'ggalign-package.R' 'ggalign.R'
+        'ggcross.R' 'ggfree.R' 'ggmark.R' 'ggplot-coord-circle.R'
+        'ggplot-facet-sector.R' 'ggplot-geom-draw.R'
+        'ggplot-geom-gshape.R' 'ggplot-geom-pie.R'
+        'ggplot-geom-subrect.R' 'ggplot-geom-tile3d.R'
         'ggplot-helper.R' 'ggplot-theme.R' 'ggplot-utils.R'
+        'grid-grob-channel.R' 'grid-utils.R'
         'import-standalone-assert.R' 'import-standalone-obj-type.R'
         'import-standalone-pkg.R' 'import-standalone-purrr.R'
         'import-standalone-tibble.R' 'layer-order.R' 'layout-.R'
@@ -62,13 +67,13 @@ Collate: 'active.R' 'plot-.R' 'align-.R' 'align-hclust.R'
         'layout-quad-switch.R' 'layout-quad-upset.R' 'link.R' 'mark.R'
         'object-name.R' 'pair-links.R' 'raster-magick.R' 'rasterise.R'
         'scheme-.R' 'scheme-align.R' 'scheme-data.R' 'scheme-theme.R'
-        'tune.R' 'utils-assert.R' 'utils-grid.R' 'utils-rd.R' 'utils.R'
-        'with_quad.R' 'zzz.R'
+        'tune.R' 'utils-assert.R' 'utils-rd.R' 'utils.R' 'with_quad.R'
+        'zzz.R'
 NeedsCompilation: no
-Packaged: 2025-03-14 17:34:56 UTC; yun
+Packaged: 2025-04-10 06:52:14 UTC; yun
 Author: Yun Peng [aut, cre] (<https://orcid.org/0000-0003-2801-3332>),
   Shixiang Wang [aut] (<https://orcid.org/0000-0001-9855-7357>),
   Guangchuang Yu [ths] (<https://orcid.org/0000-0002-6485-8781>)
 Maintainer: Yun Peng <yunyunp96@163.com>
 Repository: CRAN
-Date/Publication: 2025-03-15 23:00:02 UTC
+Date/Publication: 2025-04-10 07:10:02 UTC
