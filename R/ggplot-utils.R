@@ -23,9 +23,9 @@ snake_class <- function(x) ggfun("snake_class")(x)
 
 ggadd_default <- function(plot, mapping = NULL, theme = NULL) {
     if (!is.null(mapping)) {
-        plot <- plot + mapping + .subset2(plot, "mapping")
+        plot <- plot + mapping + plot$mapping
     }
-    if (!is.null(theme)) plot$theme <- theme + .subset2(plot, "theme")
+    if (!is.null(theme)) plot$theme <- theme + plot$theme
     plot
 }
 
@@ -72,10 +72,7 @@ ggplot_add.ggalign_default_expansion <- function(object, plot, object_name) {
     plot$facet <- ggproto(
         NULL,
         ParentFacet,
-        init_scales = function(self,
-                               layout,
-                               x_scale = NULL,
-                               y_scale = NULL,
+        init_scales = function(self, layout, x_scale = NULL, y_scale = NULL,
                                params) {
             if (!is.null(x_scale) && !is.null(.subset2(object, "x"))) {
                 x_scale$expand <- x_scale$expand %|w|% .subset2(object, "x")
@@ -95,7 +92,7 @@ ggplot_add.ggalign_default_expansion <- function(object, plot, object_name) {
 }
 
 ######################################################
-reverse_continuous_scale <- function(plot, axis) {
+reverse_continuous_axis <- function(plot, axis) {
     if (plot$scales$has_scale(axis)) {
         # modify scale in place
         scale <- plot$scales$get_scales(axis)
@@ -114,28 +111,4 @@ reverse_continuous_scale <- function(plot, axis) {
             )
     }
     plot
-}
-
-remove_scales <- function(plot, scale_aesthetics) {
-    scales <- .subset2(plot, "scales")$clone()
-    if (any(prev_aes <- scales$find(scale_aesthetics))) {
-        scales$scales <- scales$scales[!prev_aes]
-    }
-    plot$scales <- scales
-    plot
-}
-
-#' @importFrom rlang is_empty
-extract_scales <- function(plot, axis, n_panel, facet_scales) {
-    # if no facets, or if no facet scales, we replicate the single scale
-    # object to match the panel numbers
-    if (
-        n_panel > 1L &&
-            !is.null(facet_scales) &&
-            !is_empty(ans <- .subset2(facet_scales, axis))
-    ) {
-    } else {
-        ans <- rep_len(list(plot$scales$get_scales(axis)), n_panel)
-    }
-    ans
 }

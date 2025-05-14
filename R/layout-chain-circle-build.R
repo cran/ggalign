@@ -91,7 +91,7 @@ circle_build <- function(circle, schemes = NULL, theme = NULL) {
     for (i in index) {
         plot_size <- plot_sizes[[i]]
         plot <- .subset2(plot_list, i)
-        align <- plot@align # `AlignProto` object
+        craftsman <- plot@craftsman # `Craftsman` object
         plot_schemes <- inherit_schemes(plot@schemes, schemes)
         # the actual plot
         plot <- plot@plot
@@ -110,34 +110,46 @@ circle_build <- function(circle, schemes = NULL, theme = NULL) {
                 # between two tracks
                 if (i == N) outer_radius else 1
             ) * 0.5,
-            layout_name = align$layout_name
+            layout_name = craftsman$layout_name
         )
-        if (!align$free_facet && is_discrete_design(design)) {
-            if (nlevels(.subset2(design, "panel")) > 1L) {
-                plot <- plot + facet_sector(
-                    ggplot2::vars(.data$.panel), plot_coord,
-                    spacing_theta = circle@spacing_theta %||% pi / 180,
-                    drop = FALSE
-                )
+        if (!craftsman$free_facet) {
+            if (is_discrete_design(design)) {
+                if (nlevels(.subset2(design, "panel")) > 1L) {
+                    plot <- plot + facet_sector(
+                        ggplot2::vars(.data$.panel),
+                        sector_spacing = circle@sector_spacing %||% (pi / 180),
+                        drop = FALSE
+                    )
+                } else {
+                    plot <- gguse_facet(plot, ggplot2::facet_null())
+                }
             } else {
-                plot <- gguse_facet(plot, ggplot2::facet_null())
-                plot$coordinates <- plot_coord
+                if (inherits(plot$facet, "FacetSector")) {
+                    plot <- ggfacet_modify(plot,
+                        sector_spacing = circle@sector_spacing %||% (pi / 180),
+                        drop = FALSE
+                    )
+                } else {
+                    plot <- gguse_facet(plot, ggplot2::facet_null())
+                }
             }
-        } else {
-            plot$coordinates <- plot_coord
         }
+        plot$coordinates <- plot_coord
 
         # set limits and default scales
-        if (!align$free_limits) {
+        if (!craftsman$free_limits) {
             plot <- plot + ggalign_design(
                 x = design,
-                xlabels = .subset(align$labels, .subset2(design, "index"))
+                xlabels = .subset(craftsman$labels, .subset2(design, "index"))
             )
         }
 
-        # let `align` add other components
-        plot <- align$build_plot(plot, design = design)
-        plot <- align$finish_plot(plot, schemes = plot_schemes, theme = theme)
+        # let `Craftsman` add other components
+        plot <- craftsman$build_plot(plot, design = design)
+        plot <- craftsman$finish_plot(
+            plot,
+            schemes = plot_schemes, theme = theme
+        )
         plot <- plot + ggplot2::labs(x = NULL, y = NULL) +
             theme(panel.border = element_blank())
 
@@ -204,49 +216,16 @@ circle_build <- function(circle, schemes = NULL, theme = NULL) {
         }
 
         # build legends
-        if (packageVersion("ggplot2") > "3.5.2") {
-            # ggplot2 development version > 3.5.2
-            guide_list <- plot$guides$assemble(plot_theme)
-            if (!is_null_grob(guide_list)) {
-                guides[[i]] <- lapply(guide_list, function(guide_box) {
-                    if (is.gtable(guide_box)) {
-                        guide_box$grobs[grepl("guides", guide_box$layout$name)]
-                    }
-                })
-            }
-        } else {
-            default_position <- plot_theme$legend.position %||% "right"
-            if (length(default_position) == 2L) {
-                default_position <- "inside"
-            }
-            if (!identical(default_position, "none")) {
-                plot_theme$legend.key.width <- calc_element(
-                    "legend.key.width",
-                    plot_theme
-                )
-                plot_theme$legend.key.height <- calc_element(
-                    "legend.key.height",
-                    plot_theme
-                )
-                # A list of list
-                guides[[i]] <- plot$guides$draw(
-                    plot_theme,
-                    default_position,
-                    plot_theme$legend.direction
-                )
-            }
-        }
+        guides[i] <- list(plot$guides$assemble(plot_theme))
+
+        # assign value for next loop
         just <- origin
         last_plot_size <- plot_size # the last plot panel size
         last_spacing <- spacing
     }
 
     # attach the guide legends
-    guides <- lapply(c(.TLBR, "inside"), function(guide_pos) {
-        unlist(lapply(guides, .subset2, guide_pos), FALSE, FALSE)
-    })
-    names(guides) <- c(.TLBR, "inside")
-
+    guides <- collect_guides_list(guides, zeroGrob())
     theme$legend.spacing <- theme$legend.spacing %||% unit(0.5, "lines")
     theme$legend.spacing.y <- calc_element("legend.spacing.y", theme)
     theme$legend.spacing.x <- calc_element("legend.spacing.x", theme)
@@ -254,9 +233,7 @@ circle_build <- function(circle, schemes = NULL, theme = NULL) {
         "legend.box.spacing", theme
     ) %||% unit(0.2, "cm")
     legend_box <- .mapply(
-        function(guides, guide_pos) {
-            assemble_guides(guides, guide_pos, theme)
-        },
+        function(guides, guide_pos) assemble_guides(guides, guide_pos, theme),
         list(guides = guides, guide_pos = names(guides)),
         NULL
     )

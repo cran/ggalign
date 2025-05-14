@@ -62,17 +62,20 @@ remotes::install_github("Yunuuuu/ggalign")
 
 ## Learning ggalign
 
-1.  The complete tutorial is available at:
+1.  For the full reference documentation, visit:
+    <https://yunuuuu.github.io/ggalign/>
+2.  The complete tutorial is available at:
     <https://yunuuuu.github.io/ggalign-book/>
 
-2.  For the full reference documentation, visit:
-    <https://yunuuuu.github.io/ggalign/>
+## Design features
+
+![](man/figures/design.png)
 
 ## Examples
 
-![](man/figures/overview.png)
+![](man/figures/gallery.png)
 
-## Compare with other similar tools
+## Comparison with other composable visualization tools
 
 <table class="table"><thead>
     <tr>
@@ -102,8 +105,8 @@ remotes::install_github("Yunuuuu/ggalign")
     </tr>
     <tr>
         <td colspan="2"> <strong>Focus</strong> </td>
-        <td>Composable Visualization</td>
-        <td>Composable Visualization</td>
+        <td>General-purpose composable visualization</td>
+        <td>Grid-based composable visualization</td>
         <td>Heatmap</td>
     </tr>
     <tr>
@@ -163,7 +166,7 @@ remotes::install_github("Yunuuuu/ggalign")
     </tr>
 </tbody></table>
 
-## Comparison of specifications with other similar tools
+## Feature and specification comparison
 
 | Specification                                | `ggalign`                                             | `marsilea`    | `ComplexHeatmap`                                      |
 |----------------------------------------------|-------------------------------------------------------|---------------|-------------------------------------------------------|
@@ -171,7 +174,7 @@ remotes::install_github("Yunuuuu/ggalign")
 | **Group observations into different panels** | ✅                                                    | ✅            | Heatmap Only                                          |
 | **Clustering algorithm**                     | Kmeans,Hierarchical Clustering and arbitary algorithm | ❌            | Kmeans,Hierarchical Clustering and arbitary algorithm |
 | **Legends Creation**                         | Automatic                                             | Automatic     | Limited automatic, requires manual add                |
-| **Legends Position**                         | Anywhere, can be controlled for a single plot         | Anywhere      | Four sides, can only be placed on one side at a time  |
+| **Legends Position**                         | Anywhere; independently controllable per plot         | Anywhere      | Fixed to one of four sides                            |
 | **Dendrogram**                               | Tree from both `hclust` or `ape`                      | `hclust` only | `hclust` only                                         |
 | **Tanglegram**                               | ✅                                                    | ❌            | ❌                                                    |
 | **3D Heatmap**                               | ✅                                                    | ❌            | ✅                                                    |

@@ -89,8 +89,10 @@ alignpatch.wrapped_plot <- function(x) {
         "PatchWrapped", Parent,
         ggalign_wrapped_insets_under = x$ggalign_wrapped_insets_under,
         ggalign_wrapped_insets_above = x$ggalign_wrapped_insets_above,
-        patch_gtable = function(self, plot = Parent$plot) {
-            ans <- ggproto_parent(Parent, self)$patch_gtable(plot = plot)
+        patch_gtable = function(self, theme, guides, plot = Parent$plot) {
+            ans <- ggproto_parent(Parent, self)$patch_gtable(
+                theme = theme, guides = guides, plot = plot
+            )
             ans <- add_wrapped_insets(
                 ans, self$ggalign_wrapped_insets_under, FALSE
             )
@@ -160,13 +162,7 @@ add_wrapped_inset <- function(gt, inset, on_top, i) {
             clip = clip, name = sprintf("wrap-full-%d", i), z = z
         )
     } else {
-        panels <- vec_slice(layout, grep("^panel", .subset2(layout, "name")))
-        panel_loc <- list(
-            t = min(.subset2(panels, "t")),
-            l = min(.subset2(panels, "l")),
-            b = max(.subset2(panels, "b")),
-            r = max(.subset2(panels, "r"))
-        )
+        panel_loc <- find_panel(gt)
         gt <- switch(align,
             plot = gtable_add_grob(gt,
                 list(grob),

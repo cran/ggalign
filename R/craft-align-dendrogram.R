@@ -90,7 +90,7 @@ align_dendro <- function(mapping = aes(), ...,
 
 #' @importFrom ggplot2 aes ggplot
 #' @importFrom rlang inject
-#' @include align-hclust.R
+#' @include craft-align-hclust.R
 AlignDendro <- ggproto("AlignDendro", AlignHclust,
     setup_plot = function(self, plot) {
         ggadd_default(plot, aes(x = .data$x, y = .data$y)) + switch_direction(
@@ -211,10 +211,10 @@ AlignDendro <- ggproto("AlignDendro", AlignHclust,
         if (!self$in_linear || # for circular layout
             # for bottom annotation, reverse y-axis
             (!is.null(position) && position == "bottom")) {
-            plot <- reverse_continuous_scale(plot, "y")
+            plot <- reverse_continuous_axis(plot, "y")
         } else if (!is.null(position) && position == "left") {
             # for left annotation, reverse x-axis
-            plot <- reverse_continuous_scale(plot, "x")
+            plot <- reverse_continuous_axis(plot, "x")
         }
 
         # always turn off clip, this is what dendrogram dependends on

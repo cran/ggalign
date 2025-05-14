@@ -148,7 +148,7 @@ update_design.QuadLayout <- function(layout, ..., direction, design,
 update_design.StackLayout <- function(layout, ..., design, object_name) {
     layout@design <- design
     layout@plot_list <- lapply(layout@plot_list, function(plot) {
-        if (is_ggalign_plot(plot)) return(plot) # styler: off
+        if (is_craftbox(plot)) return(plot) # styler: off
         update_design(plot,
             direction = layout@direction,
             design = design
@@ -222,7 +222,7 @@ update_design.StackCross <- function(layout, ..., design, object_name,
 
         layout@plot_list[subset] <- lapply(
             plot_list[subset], function(plot) {
-                if (is_ggalign_plot(plot)) {
+                if (is_craftbox(plot)) {
                     return(plot)
                 }
                 update_design(plot,
@@ -524,7 +524,7 @@ align_discrete_scales <- function(axis, scales, design, labels, n_panels,
 
         # for continuous scale, we don't allow the trans
         # if (!scale$is_discrete() && !identical(scale$trans$name, "identity")) {
-        #     cli::cli_warn(sprintf(
+        #     cli_warn(sprintf(
         #         "{.arg trans} must be {.field identity} in {.code %s}",
         #         deparse(scale$call)
         #     ))
@@ -716,6 +716,13 @@ gguse_circle_coord <- function(plot, coord, ..., layout_name) {
 }
 
 ######################################################
+#' @importFrom ggplot2 ggproto
+ggfacet_modify <- function(plot, ...) {
+    ParentFacet <- plot$facet
+    plot$facet <- ggproto(NULL, ParentFacet, ...)
+    plot
+}
+
 gguse_facet <- function(plot, facet, ...) {
     plot$facet <- align_melt_facet(facet, plot$facet, ...)
     plot

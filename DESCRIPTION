@@ -1,6 +1,6 @@
 Package: ggalign
 Title: A 'ggplot2' Extension for Consistent Axis Alignment
-Version: 1.0.1
+Version: 1.0.2
 Authors@R: c(
         person("Yun", "Peng", , "yunyunp96@163.com", role = c("aut", "cre"), comment = c(ORCID = "0000-0003-2801-3332")),
         person("Shixiang", "Wang", , "w_shixiang@163.com", role = "aut", comment = c(ORCID = "0000-0001-9855-7357")),
@@ -19,22 +19,17 @@ URL: https://github.com/Yunuuuu/ggalign,
         https://yunuuuu.github.io/ggalign/
 BugReports: https://github.com/Yunuuuu/ggalign/issues
 Depends: ggplot2 (>= 3.5.0)
-Imports: cli, grDevices, grid, gtable, lifecycle, methods, rlang,
-        stats, utils, vctrs (>= 0.5.0)
-Suggests: gridGraphics, ragg, scales, magick, testthat (>= 3.0.0),
-        vdiffr
-Enhances: patchwork, ggrastr
+Imports: vctrs (>= 0.5.0), rlang, cli, grDevices, grid, gtable, scales,
+        methods, stats, utils, lifecycle
+Suggests: gridGraphics, ragg, magick, testthat (>= 3.0.0), vdiffr
+Enhances: patchwork, ggrastr, maftools
 ByteCompile: true
-Config/Needs/website: ggh4x, R.utils, dplyr, tidyr, bench, pheatmap,
-        gplots, maftools, ComplexHeatmap, seriation
+Config/Needs/website: bench, pheatmap, gplots, maftools, ComplexHeatmap
 Config/testthat/edition: 3
 Encoding: UTF-8
 RoxygenNote: 7.3.2
 Language: en-GB
-Collate: 'active.R' 'plot-.R' 'align-.R' 'align-hclust.R'
-        'align-dendrogram.R' 'align-group.R' 'align-kmeans.R'
-        'align-order.R' 'align-order2.R' 'align-phylo.R'
-        'alignpatch-.R' 'alignpatch-align_plots.R'
+Collate: 'active.R' 'alignpatch-.R' 'alignpatch-align_plots.R'
         'alignpatch-alignpatches.R' 'alignpatch-area.R'
         'alignpatch-build.R' 'alignpatch-free-align.R'
         'alignpatch-free-border.R' 'alignpatch-free-guide.R'
@@ -42,17 +37,21 @@ Collate: 'active.R' 'plot-.R' 'align-.R' 'align-hclust.R'
         'alignpatch-free-vp.R' 'alignpatch-ggplot2.R'
         'alignpatch-guides.R' 'alignpatch-inset.R' 'alignpatch-patch.R'
         'alignpatch-patchwork.R' 'alignpatch-title.R'
-        'alignpatch-wrap.R' 'attributes.R' 'cross-.R' 'cross-link.R'
-        'cross-mark.R' 'cross-none.R' 'fortify-data-frame-.R'
-        'fortify-data-frame-dendrogram.R' 'fortify-matrix-.R'
-        'fortify-matrix-list.R' 'fortify-matrix-maftools.R'
-        'fortify-matrix-matrix.R' 'ggalign-package.R' 'ggalign.R'
-        'ggcross.R' 'ggfree.R' 'ggmark.R' 'ggplot-coord-circle.R'
-        'ggplot-facet-sector.R' 'ggplot-geom-draw.R'
-        'ggplot-geom-gshape.R' 'ggplot-geom-pie.R'
-        'ggplot-geom-subrect.R' 'ggplot-geom-tile3d.R'
+        'alignpatch-wrap.R' 'attributes.R' 'craftbox-.R'
+        'craft-align-.R' 'craft-align-hclust.R'
+        'craft-align-dendrogram.R' 'craft-align-group.R'
+        'craft-align-kmeans.R' 'craft-align-order.R'
+        'craft-align-order2.R' 'craft-align-phylo.R' 'craft-cross-.R'
+        'craft-cross-link.R' 'craft-cross-mark.R' 'craft-cross-none.R'
+        'fortify-data-frame-.R' 'fortify-data-frame-dendrogram.R'
+        'fortify-matrix-.R' 'fortify-matrix-list.R'
+        'fortify-matrix-maftools.R' 'fortify-matrix-matrix.R'
+        'ggalign-package.R' 'ggalign.R' 'ggcross.R' 'ggfree.R'
+        'ggmark.R' 'ggplot-coord-circle.R' 'ggplot-facet-sector.R'
+        'ggplot-geom-draw.R' 'ggplot-geom-gshape.R' 'ggplot-geom-pie.R'
+        'ggplot-geom-rect3d.R' 'ggplot-geom-subrect.R'
         'ggplot-helper.R' 'ggplot-theme.R' 'ggplot-utils.R'
-        'grid-grob-channel.R' 'grid-utils.R'
+        'grid-grob-channel.R' 'grid-grob-magick.R' 'grid-utils.R'
         'import-standalone-assert.R' 'import-standalone-obj-type.R'
         'import-standalone-pkg.R' 'import-standalone-purrr.R'
         'import-standalone-tibble.R' 'layer-order.R' 'layout-.R'
@@ -70,10 +69,10 @@ Collate: 'active.R' 'plot-.R' 'align-.R' 'align-hclust.R'
         'tune.R' 'utils-assert.R' 'utils-rd.R' 'utils.R' 'with_quad.R'
         'zzz.R'
 NeedsCompilation: no
-Packaged: 2025-04-10 06:52:14 UTC; yun
-Author: Yun Peng [aut, cre] (<https://orcid.org/0000-0003-2801-3332>),
-  Shixiang Wang [aut] (<https://orcid.org/0000-0001-9855-7357>),
-  Guangchuang Yu [ths] (<https://orcid.org/0000-0002-6485-8781>)
+Packaged: 2025-05-14 13:40:56 UTC; yun
+Author: Yun Peng [aut, cre] (ORCID: <https://orcid.org/0000-0003-2801-3332>),
+  Shixiang Wang [aut] (ORCID: <https://orcid.org/0000-0001-9855-7357>),
+  Guangchuang Yu [ths] (ORCID: <https://orcid.org/0000-0002-6485-8781>)
 Maintainer: Yun Peng <yunyunp96@163.com>
 Repository: CRAN
-Date/Publication: 2025-04-10 07:10:02 UTC
+Date/Publication: 2025-05-14 14:00:08 UTC

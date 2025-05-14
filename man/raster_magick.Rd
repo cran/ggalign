@@ -2,9 +2,16 @@
 % Please edit documentation in R/raster-magick.R
 \name{raster_magick}
 \alias{raster_magick}
-\title{Rasterize the input object}
+\title{Rasterize the ggplot layers}
 \usage{
-raster_magick(x, magick = NULL, ..., res = NULL, interpolate = FALSE)
+raster_magick(
+  x,
+  magick = NULL,
+  ...,
+  res = NULL,
+  interpolate = FALSE,
+  vp = NULL
+)
 }
 \arguments{
 \item{x}{An object to rasterize, can be a \code{\link[grid:grid.grob]{grob()}},
@@ -17,7 +24,7 @@ compatible with \code{\link[grDevices:as.raster]{as.raster()}}. You can use any 
 the \verb{image_*()} functions from the \strong{magick} package to process the raster
 image.}
 
-\item{...}{Not used currently.}
+\item{...}{These dots are for future extensions and must be empty.}
 
 \item{res}{An integer sets the desired resolution in pixels.}
 
@@ -26,6 +33,8 @@ image.}
     image (the alternative is to use nearest-neighbour interpolation,
     which gives a more blocky result).
   }
+
+\item{vp}{A Grid viewport object (or NULL).}
 }
 \value{
 An object with the same class of the input.
@@ -49,7 +58,8 @@ if (requireNamespace("magick")) {
 
     ggheatmap(small_mat, aes(.x, .y), filling = NULL) +
         # Use `magick::filter_types()` to check available `filter` arguments
-        raster_magick(geom_tile(aes(fill = value)),
+        raster_magick(
+            geom_tile(aes(fill = value)),
             magick = function(image) {
                 magick::image_resize(image,
                     geometry = "50\%x", filter = "Lanczos"
@@ -57,4 +67,7 @@ if (requireNamespace("magick")) {
             }
         )
 }
+}
+\seealso{
+\code{\link[=magickGrob]{magickGrob()}}
 }

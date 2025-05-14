@@ -11,8 +11,10 @@ circle_layout(
   ...,
   radial = NULL,
   direction = "outward",
+  sector_spacing = NULL,
   limits = waiver(),
-  theme = NULL
+  theme = NULL,
+  spacing_theta = deprecated()
 )
 
 circle_discrete(
@@ -20,8 +22,9 @@ circle_discrete(
   ...,
   radial = NULL,
   direction = "outward",
-  spacing_theta = NULL,
-  theme = NULL
+  sector_spacing = NULL,
+  theme = NULL,
+  spacing_theta = deprecated()
 )
 
 circle_continuous(
@@ -29,8 +32,10 @@ circle_continuous(
   ...,
   radial = NULL,
   direction = "outward",
+  sector_spacing = NULL,
   limits = NULL,
-  theme = NULL
+  theme = NULL,
+  spacing_theta = deprecated()
 )
 }
 \arguments{
@@ -59,6 +64,9 @@ indicating the direction in which the plot is added.
 \item \code{inward}: The plot is added from the outer to the inner.
 }}
 
+\item{sector_spacing}{The size of spacing between different panel. A numeric
+of the radians or a \code{\link[ggplot2:element]{rel()}} object.}
+
 \item{limits}{A \code{\link[=continuous_limits]{continuous_limits()}} object specifying the left/lower
 limit and the right/upper limit of the scale. Used to align the continuous
 axis.}
@@ -69,8 +77,8 @@ elements of the layout, including \code{guides}, \code{title}, \code{subtitle}, 
 inherit from the parent \code{layout}. It also controls the panel spacing for all
 plots in the layout.}
 
-\item{spacing_theta}{The size of spacing between different panel. A numeric
-of the radians or a \code{\link[ggplot2:element]{rel()}} object.}
+\item{spacing_theta}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Please use
+\code{sector_spacing} instead.}
 }
 \value{
 A \code{CircleLayout} object.

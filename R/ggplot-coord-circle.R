@@ -36,21 +36,13 @@ coord_circle <- function(theta = "x", start = 0, end = NULL,
         assert_bool(expand)
     }
     clip <- arg_match0(clip, c("off", "on"))
-    valid_inside_axis <- .standalone_types_check_assert_call(
-        ffi_standalone_is_bool_1.0.7,
-        r.axis.inside,
-        FALSE,
-        TRUE
-    ) || .standalone_types_check_assert_call(
-        ffi_standalone_check_number_1.0.7,
-        r.axis.inside,
-        allow_decimal = TRUE,
-        NULL,
-        NULL,
-        FALSE,
-        FALSE,
-        TRUE
-    ) == 0L
+
+    valid_inside_axis <- .rlang_check_bool(r.axis.inside,
+        allow_null = TRUE
+    ) ||
+        .rlang_check_number(r.axis.inside,
+            allow_decimal = TRUE, allow_infinite = FALSE
+        ) == 0L
     if (!valid_inside_axis) {
         cli_abort(
             "{.arg r.axis.inside} must be a single boolean value or a number"
@@ -97,27 +89,29 @@ coord_circle <- function(theta = "x", start = 0, end = NULL,
 
 #' @importFrom ggplot2 ggproto_parent
 circle_panel_params <- function(self, scale_x, scale_y, params = list()) {
-    if (self$theta == "x") {
-        xlimits <- self$limits$theta
-        ylimits <- self$limits$r
-    } else {
-        xlimits <- self$limits$r
-        ylimits <- self$limits$theta
-    }
-    new <- c(
-        view_scales_polar(
-            scale_x, self$theta, xlimits,
-            expand = params$expand[c(4, 2)] %||% self$expand
-        ),
-        view_scales_polar(
-            scale_y, self$theta, ylimits,
-            expand = params$expand[c(3, 1)] %||% self$expand
-        )
-    )
     out <- ggproto_parent(ggplot2::CoordRadial, self)$setup_panel_params(
         scale_x, scale_y, params
     )
-    out[names(new)] <- new
+    if (packageVersion("ggplot2") <= "3.5.2") {
+        if (self$theta == "x") {
+            xlimits <- self$limits$theta
+            ylimits <- self$limits$r
+        } else {
+            xlimits <- self$limits$r
+            ylimits <- self$limits$theta
+        }
+        new <- c(
+            view_scales_polar(
+                scale_x, self$theta, xlimits,
+                expand = params$expand[c(4, 2)] %||% self$expand
+            ),
+            view_scales_polar(
+                scale_y, self$theta, ylimits,
+                expand = params$expand[c(3, 1)] %||% self$expand
+            )
+        )
+        out[names(new)] <- new
+    }
     out$bbox <- ggfun("polar_bbox")(
         self$arc, margin = c(0, 0, 0, 0),
         inner_radius = self$inner_radius

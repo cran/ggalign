@@ -80,17 +80,24 @@ Convert \code{MAF} object to a matrix:
 
 For \code{fortify_matrix.MAF}:
 \itemize{
-\item \code{gene_summary}: gene summary informations. See
+\item \code{gene_summary}: A data frame of gene summary informations. See
 \code{maftools::getGeneSummary()} for details.
-\item \code{sample_summary}: sample summary informations. See
+\item \code{sample_summary}: A data frame of sample summary informations. See
 \code{maftools::getSampleSummary()} for details.
-\item \code{sample_anno}: sample clinical informations. See
+\item \code{sample_anno}: A data frame of sample clinical informations. See
 \code{maftools::getClinicalData()} for details.
+\item \code{variant_weights}: A data frame of variant weights. Each gene in a sample
+is assigned a total weight of \code{1}. When multiple variants occur in the
+same gene-sample pair, the weight for each variant reflects its proportion
+of the total.
 \item \code{n_genes}: Total number of genes.
 \item \code{n_samples}: Total number of samples.
-\item \code{titv}: A list of \code{data.frames} with Transitions and Transversions
+\item \code{titv}: A list of data frame with Transitions and Transversions
 summary. See \code{maftools::titv()} for details.
 }
+
+The levels of \code{Variant_Classification} will be stored in \code{\link[=ggalign_lvls]{ggalign_lvls()}}.
+If they do not exist, alphabetical ordering will be used.
 
 
 For \code{fortify_matrix.MAF_pathways}:

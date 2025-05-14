@@ -1,3 +1,25 @@
+# ggalign 1.0.2
+
+* `align_plots()`: Always ensure that plots placed in a border collect their guides, if any guides are to be collected in that border. This prevents overlap, unless the guides will be collected by the parent layout.
+
+* new scale for z aesthetic: scale_z_continuous, scale_z_binned, scale_z_discrete, scale_z_ordinal, scale_z_datetime, scale_z_date 
+
+* `geom_subrect()` and `geom_subtile()` gain `nrow` and `ncol` arguments to control the layout, and deprecate `direction` argument
+
+* `ggoncoplot()` gains a new argument `remove_duplicates` to control whether to remove duplicated variants within the same cell.
+
+* `fortify_data_frame.matrix()` gains a new argument `lvls`, allowing matrix values to be converted into a factor.
+
+* `circle_layout()`: fix wrong `sector_spacing` due to the operator precedence when building.
+
+* `circle_layout()`: rename `spacing_theta` argument to `sector_spacing` argument, and deprecate `spacing_theta` argument.
+
+* `circle_continous`: gains `spacing_theta` argument to control the sector spacing for all plots.
+
+* `facet_sector()`: deprecate `radial` argument, user should add the `coord_radial()` or `coord_circle()` directly to the plot.
+
+* new `magickGrob()` to construct grob with `magick` processing.
+
 # ggalign 1.0.1
 
 * fix R CMD check error for the updated version of ggplot2 3.5.2.
